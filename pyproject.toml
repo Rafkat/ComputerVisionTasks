@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "convolutionneuralnetworks"
+version = "0.1.0"
+description = ""
+authors = ["rafkat <rafgaleev3@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+jupyter = "^1.1.1"
+datasets = "^3.3.1"
+pillow = "^11.1.0"
+torch = {extras = ["cuda"], version = "^2.6.0"}
+torchvision = "^0.21.0"
+tqdm = "^4.67.1"
+matplotlib = "^3.10.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
