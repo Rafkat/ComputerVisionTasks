@@ -1,6 +1,7 @@
-import torch
 import torch.nn as nn
 
+
+# originated from https://arxiv.org/pdf/1512.03385
 
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, downsample=False):
