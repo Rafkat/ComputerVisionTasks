@@ -3,7 +3,6 @@ import torch.nn as nn
 
 
 # originated from https://arxiv.org/pdf/1608.06993v5
-# TODO Debug nn, problem with connections inside dense block
 
 class BasicBlock(nn.Module):
     def __init__(self, in_channels, growth_rate):
@@ -16,24 +15,26 @@ class BasicBlock(nn.Module):
         self.relu2 = nn.ReLU()
         self.conv2 = nn.Conv2d(4 * growth_rate, growth_rate, kernel_size=3, padding=1)
 
-    def forward(self, x, prev_features):
+    def forward(self, x):
         out = self.conv1(self.relu1(self.bn1(x)))
         out = self.conv2(self.relu2(self.bn2(out)))
-
-        out = torch.cat(prev_features + [out], dim=1)
         return out
 
 
 class DenseBlock(nn.Module):
     def __init__(self, in_channels, growth_rate, block_num):
         super(DenseBlock, self).__init__()
-        self.block = nn.ModuleList([BasicBlock(in_channels + n * growth_rate, growth_rate) for n in range(block_num)])
+        self.first_block = BasicBlock(in_channels, growth_rate)
+        self.block = nn.ModuleList([BasicBlock(n * growth_rate, growth_rate) for n in range(1, block_num)])
 
     def forward(self, x):
-        outputs = [x]
+        outputs = []
+        x = self.first_block(x)
+        outputs.append(x)
         for basic_block in self.block:
-            x = basic_block(x, outputs)
-            outputs.append(x)
+            out = basic_block(x)
+            x = torch.cat(outputs + [out], dim=1)
+            outputs.append(out)
         return x
 
 
@@ -60,9 +61,9 @@ class DenseNet(nn.Module):
         self.dense_block3 = DenseBlock(growth_rate * 4, growth_rate, block_config[2])
         self.dense_block4 = DenseBlock(growth_rate * 4, growth_rate, block_config[3])
 
-        self.transition1 = TransitionLayer(in_channels=(block_config[0] + 2) * growth_rate, growth_rate=growth_rate)
-        self.transition2 = TransitionLayer(in_channels=(block_config[1] + 4) * growth_rate, growth_rate=growth_rate)
-        self.transition3 = TransitionLayer(in_channels=(block_config[2] + 4) * growth_rate, growth_rate=growth_rate)
+        self.transition1 = TransitionLayer(in_channels=block_config[0] * growth_rate, growth_rate=growth_rate)
+        self.transition2 = TransitionLayer(in_channels=block_config[1] * growth_rate, growth_rate=growth_rate)
+        self.transition3 = TransitionLayer(in_channels=block_config[2] * growth_rate, growth_rate=growth_rate)
 
         self.bn1 = nn.BatchNorm2d(3)
         self.relu = nn.ReLU()
@@ -70,7 +71,7 @@ class DenseNet(nn.Module):
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Linear((block_config[2] + 4) * growth_rate, 1000)
+        self.fc = nn.Linear(block_config[2] * growth_rate, 1000)
 
     def forward(self, x):
         x = self.conv1(self.relu(self.bn1(x)))
@@ -89,5 +90,5 @@ class DenseNet(nn.Module):
 
 
 if __name__ == '__main__':
-    model = DenseNet(block_config=[6, 12, 32, 32], growth_rate=12)
+    model = DenseNet(block_config=[6, 12, 32, 32], growth_rate=12)  # DenseNet169 config
     model(torch.randn(1, 3, 224, 224))
