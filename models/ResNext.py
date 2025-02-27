@@ -1,6 +1,4 @@
-import torch
 import torch.nn as nn
-from sympy.abc import q
 
 
 # originated from https://arxiv.org/pdf/1611.05431v2
