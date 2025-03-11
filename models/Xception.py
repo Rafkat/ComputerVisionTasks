@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -150,3 +151,8 @@ class Xception(nn.Module):
         x = self.middle_net(x)
         x = self.exit_net(x)
         return x
+
+
+if __name__ == '__main__':
+    model = Xception(728, 8, 10)
+    model(torch.randn(1, 3, 224, 224))

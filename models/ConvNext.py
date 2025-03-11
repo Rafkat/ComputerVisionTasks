@@ -99,3 +99,8 @@ class ConvNext(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
+
+
+if __name__ == '__main__':
+    net = ConvNext(channels=[128, 256, 512, 1024], blocks_config=[3, 3, 27, 3])
+    net(torch.randn(1, 3, 224, 224))

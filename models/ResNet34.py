@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -74,3 +75,8 @@ class ResNet34(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
+
+
+if __name__ == '__main__':
+    model = ResNet34()
+    model(torch.randn(1, 3, 224, 224))

@@ -104,3 +104,7 @@ class ResNeXt(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
+
+
+if __name__ == '__main__':
+    model = ResNeXt([3, 4, 6, 3])

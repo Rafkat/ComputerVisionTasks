@@ -37,3 +37,7 @@ class AlexNet(nn.Module):
         x = F.relu(self.fc7(x))
         x = self.fc8(x)
         return x
+
+if __name__ == '__main__':
+    net = AlexNet()
+    net(torch.randn(1, 3, 224, 224))

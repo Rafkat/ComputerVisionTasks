@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 
 
@@ -39,9 +40,13 @@ class VGG16(nn.Module):
         x = self.maxpool(self.conv3(x))
         x = self.maxpool(self.conv4(x))
         x = self.maxpool(self.conv5(x))
-        print(x.shape)
         x = x.view(x.size(0), -1)
         x = self.fc1(x)
         x = self.fc2(x)
         x = self.fc3(x)
         return x
+
+
+if __name__ == '__main__':
+    model = VGG16()
+    model(torch.randn(1, 3, 224, 224))

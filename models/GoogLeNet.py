@@ -39,23 +39,23 @@ class GoogLeNet(nn.Module):
     def __init__(self):
         super(GoogLeNet, self).__init__()
         self.first_block = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=1),
+            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=3, stride=2),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
             nn.LocalResponseNorm(size=5, alpha=0.0001, beta=0.75),
             nn.Conv2d(64, 192, kernel_size=1, stride=1),
             nn.ReLU(),
             nn.Conv2d(192, 192, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.LocalResponseNorm(size=5, alpha=0.0001, beta=0.75),
-            nn.MaxPool2d(kernel_size=3, stride=2),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         )
 
         self.lrn = nn.LocalResponseNorm(size=5, alpha=0.0001, beta=0.75)
 
         self.inception3a = InceptionBlock(192, 64, 96, 128, 16, 32, 32)
         self.inception3b = InceptionBlock(256, 128, 128, 192, 32, 96, 64)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.inception4a = InceptionBlock(480, 192, 96, 208, 16, 48, 64)
         self.inception4b = InceptionBlock(512, 160, 112, 224, 24, 64, 64)
         self.inception4c = InceptionBlock(512, 128, 128, 256, 24, 64, 64)
@@ -66,14 +66,14 @@ class GoogLeNet(nn.Module):
 
         self.avgpool1 = nn.AvgPool2d(5, stride=3)
         self.out_conv1 = nn.Conv2d(512, 2048, kernel_size=1)
-        self.out_fc11 = nn.Linear(2048, 1024)
+        self.out_fc11 = nn.Linear(2048 * 4 * 4, 1024)
         self.out_fc12 = nn.Linear(1024, 1000)
         self.avgpool2 = nn.AvgPool2d(5, stride=3)
-        self.out_conv2 = nn.Conv2d(512, 2048, kernel_size=1)
-        self.out_fc21 = nn.Linear(2048, 1024)
+        self.out_conv2 = nn.Conv2d(528, 2048, kernel_size=1)
+        self.out_fc21 = nn.Linear(2048 * 4 * 4, 1024)
         self.out_fc22 = nn.Linear(1024, 1000)
         self.avgpool3 = nn.AvgPool2d(7, stride=1)
-        self.dropout = nn.Dropout(0.4)
+        self.dropout = nn.Dropout(0.7)
         self.fc = nn.Linear(1024, 1000)
 
     def forward(self, x):
@@ -107,3 +107,6 @@ class GoogLeNet(nn.Module):
         return outputs
 
 
+if __name__ == '__main__':
+    net = GoogLeNet()
+    net(torch.randn(1, 3, 224, 224))

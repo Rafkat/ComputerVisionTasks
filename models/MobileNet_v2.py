@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -108,3 +109,8 @@ class MobileNetV2(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
+
+
+if __name__ == '__main__':
+    model = MobileNetV2(10)
+    model(torch.randn(1, 3, 224, 224))
