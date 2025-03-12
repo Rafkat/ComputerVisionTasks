@@ -6,7 +6,7 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 from torch import nn
 
-from trainings.cifar10.model_configs import models_config
+from model_configs import models_config
 
 
 class Cifar10Training:
@@ -101,7 +101,8 @@ if __name__ == '__main__':
     for model_config in models_config.values():
         model = model_config['model']
         training = Cifar10Training(model.to(dvc))
-        train_dataloader, val_dataloader = training.load_cifar_data()
+        train_dataloader, val_dataloader = training.load_cifar_data(img_size=model_config['img_size'],
+                                                                    batch_size=model_config['batch_size'])
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
         training.train(train_dataloader, val_dataloader, optimizer,
                        loss_func=nn.CrossEntropyLoss(), epochs=50, device=dvc)
