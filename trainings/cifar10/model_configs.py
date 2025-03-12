@@ -49,7 +49,7 @@ RESNET34_CONFIG = {
 }
 
 RESNET50_CONFIG = {
-    'batch_size': 128,
+    'batch_size': 64,
     'img_size': 224,
     'model': cm.ResNet50.ResNet50(nb_classes=10),
 }
@@ -67,14 +67,14 @@ XCEPTION_CONFIG = {
 }
 
 models_config = {
-    'vgg16': VGG16_CONFIG,
-    'alexnet': ALEXNET_CONFIG,
-    'convnext': CONVNEXT_CONFIG,
-    'googlenet': GOOGLENET_CONFIG,
-    'lenet': LENET_CONFIG,
-    'mobilenetv1': MOBILENETV1_CONFIG,
-    'mobilenetv2': MOBILENETV2_CONFIG,
-    'resnet34': RESNET34_CONFIG,
+    # 'vgg16': VGG16_CONFIG,
+    # 'alexnet': ALEXNET_CONFIG,
+    # 'convnext': CONVNEXT_CONFIG,
+    # 'googlenet': GOOGLENET_CONFIG,
+    # 'lenet': LENET_CONFIG,
+    # 'mobilenetv1': MOBILENETV1_CONFIG,
+    # 'mobilenetv2': MOBILENETV2_CONFIG,
+    # 'resnet34': RESNET34_CONFIG,
     'resnet50': RESNET50_CONFIG,
     'resnext': RESNEXT_CONFIG,
     'xception': XCEPTION_CONFIG,
