@@ -48,6 +48,7 @@ class Cifar10Training:
     def train(self, train_dataloader, val_dataloader, optimizer, loss_func, epochs, device):
         print('Start training...')
         history = pd.DataFrame(columns=['loss', 'acc', 'val_loss', 'val_acc'])
+        print('Training')
         for epoch in range(epochs):
             self.model.train()
 
@@ -91,10 +92,10 @@ class Cifar10Training:
 
             # print(f"Epoch [{epoch + 1}/{epochs}], Loss: {loss.item()}, "
             #       f"Val-loss: {mean_val_loss}, Val-acc: {mean_val_acc}")
-        history.to_csv(f'trainings/cifar10/logs/{model.__class__.__name__}_history.csv', index=False)
-        print(f'Finished Training {model.__class__.__name__}')
-        torch.save(model.state_dict(), f'trainings/cifar10/weights/{model.__class__.__name__}.pth')
-        print(f'Model weights saved to {model.__class__.__name__}.pth')
+        history.to_csv(f'trainings/cifar10/logs/{self.model.__class__.__name__}_history.csv', index=False)
+        print(f'Finished Training {self.model.__class__.__name__}')
+        torch.save(self.model.state_dict(), f'trainings/cifar10/weights/{self.model.__class__.__name__}.pth')
+        print(f'Model weights saved to {self.model.__class__.__name__}.pth')
 
 
 if __name__ == '__main__':
