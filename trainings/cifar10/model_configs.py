@@ -66,6 +66,12 @@ XCEPTION_CONFIG = {
     'model': cm.Xception.Xception(nb_classes=10),
 }
 
+DENSENET_CONFIG = {
+    'batch_size': 128,
+    'img_size': 224,
+    'model': cm.DenseNet.DenseNet(nb_classes=10),
+}
+
 models_config = {
     # 'vgg16': VGG16_CONFIG,
     # 'alexnet': ALEXNET_CONFIG,
@@ -78,4 +84,5 @@ models_config = {
     'resnet50': RESNET50_CONFIG,
     'resnext': RESNEXT_CONFIG,
     'xception': XCEPTION_CONFIG,
+    'densenet': DENSENET_CONFIG
 }

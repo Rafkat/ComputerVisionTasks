@@ -54,7 +54,7 @@ class TransitionLayer(nn.Module):
 
 
 class DenseNet(nn.Module):
-    def __init__(self, block_config=(6, 12, 32, 32), growth_rate=12):
+    def __init__(self, block_config=(6, 12, 32, 32), growth_rate=12, nb_classes=1000):
         super(DenseNet, self).__init__()
         self.dense_block1 = DenseBlock(growth_rate * 2, growth_rate, block_config[0])
         self.dense_block2 = DenseBlock(growth_rate * 4, growth_rate, block_config[1])
@@ -71,7 +71,7 @@ class DenseNet(nn.Module):
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Linear(block_config[2] * growth_rate, 1000)
+        self.fc = nn.Linear(block_config[2] * growth_rate, nb_classes)
 
     def forward(self, x):
         x = self.conv1(self.relu(self.bn1(x)))
