@@ -2,22 +2,10 @@ import os
 
 import pandas as pd
 import torch
-import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-from datasets import load_dataset
+import torchvision.transforms as transforms
 from torch import nn
 
-from convolution_models.AlexNet import AlexNet
-from convolution_models.ConvNext import ConvNext
-from convolution_models.GoogLeNet import GoogLeNet
-from convolution_models.LeNet5 import LeNet5
-from convolution_models.MobileNet_v1 import MobileNetV1
-from convolution_models.MobileNet_v2 import MobileNetV2
-from convolution_models.ResNet34 import ResNet34
-from convolution_models.ResNet50 import ResNet50
-from convolution_models.ResNext import ResNeXt
-from convolution_models.VGG16 import VGG16
-from convolution_models.Xception import Xception
 from trainings.cifar10.model_configs import models_config
 
 
@@ -110,9 +98,9 @@ class Cifar10Training:
 
 if __name__ == '__main__':
     dvc = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    for model_config in models_config:
+    for model_config in models_config.values():
         model = model_config['model']
-        training = Cifar10Training(model)
+        training = Cifar10Training(model.to(dvc))
         train_dataloader, val_dataloader = training.load_cifar_data()
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
         training.train(train_dataloader, val_dataloader, optimizer,
