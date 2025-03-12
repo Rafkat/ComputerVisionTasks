@@ -49,7 +49,7 @@ RESNET34_CONFIG = {
 }
 
 RESNET50_CONFIG = {
-    'batch_size': 256,
+    'batch_size': 128,
     'img_size': 224,
     'model': cm.ResNet50.ResNet50(nb_classes=10),
 }
