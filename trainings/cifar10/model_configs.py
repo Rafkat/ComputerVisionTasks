@@ -1,6 +1,3 @@
-import sys
-sys.path.append('../convolution_models')
-print(sys.path)
 import convolution_models as cm
 
 VGG16_CONFIG = {

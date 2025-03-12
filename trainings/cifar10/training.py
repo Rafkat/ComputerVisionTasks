@@ -6,7 +6,7 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 from torch import nn
 
-from model_configs import models_config
+from trainings.cifar10.model_configs import models_config
 
 
 class Cifar10Training:
