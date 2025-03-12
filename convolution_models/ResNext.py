@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -54,7 +55,7 @@ class ResLayer(nn.Module):
 
 
 class ResNeXt(nn.Module):
-    def __init__(self, layers_config, cardinality=32):
+    def __init__(self, layers_config=(3, 4, 6, 3), cardinality=32, nb_classes=1000):
         super(ResNeXt, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3)
         self.bn1 = nn.BatchNorm2d(64)
@@ -91,7 +92,7 @@ class ResNeXt(nn.Module):
         )
 
         self.avgpool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Linear(2048, cardinality)
+        self.fc = nn.Linear(2048, nb_classes)
 
     def forward(self, x):
         x = self.relu1(self.bn1(self.conv1(x)))
@@ -108,3 +109,4 @@ class ResNeXt(nn.Module):
 
 if __name__ == '__main__':
     model = ResNeXt([3, 4, 6, 3])
+    model(torch.randn(1, 3, 128, 128))

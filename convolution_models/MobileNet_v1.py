@@ -22,7 +22,7 @@ class DepthwiseSeparableConv(nn.Module):
 
 
 class MobileNetV1(nn.Module):
-    def __init__(self, deep_blocks_num, num_classes=1000):
+    def __init__(self, deep_blocks_num=5, nb_classes=1000):
         super(MobileNetV1, self).__init__()
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1)
         self.bn1 = nn.BatchNorm2d(32)
@@ -48,7 +48,7 @@ class MobileNetV1(nn.Module):
         self.sep_conv8 = DepthwiseSeparableConv(1024, 1024, 3, 1)
 
         self.avgpool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Linear(1024, num_classes)
+        self.fc = nn.Linear(1024, nb_classes)
 
     def forward(self, x):
         x = self.conv1(x)

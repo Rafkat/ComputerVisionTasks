@@ -140,7 +140,7 @@ class ExitFlow(nn.Module):
 
 
 class Xception(nn.Module):
-    def __init__(self, intermediate_channels, nb_middle_blocks, nb_classes):
+    def __init__(self, intermediate_channels=728, nb_middle_blocks=8, nb_classes=10):
         super(Xception, self).__init__()
         self.entry_net = EntryFlow(3, intermediate_channels)
         self.middle_net = MiddleFlow(intermediate_channels, intermediate_channels, nb_middle_blocks)

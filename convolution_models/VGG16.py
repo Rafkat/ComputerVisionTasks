@@ -21,18 +21,18 @@ class ConvBlock(nn.Module):
 
 
 class VGG16(nn.Module):
-    def __init__(self):
+    def __init__(self, input_size=224, nb_classes=1000):
         super(VGG16, self).__init__()
         self.conv1 = ConvBlock([3, 64])
         self.conv2 = ConvBlock([64, 128])
         self.conv3 = ConvBlock([128, 256, 256])
         self.conv4 = ConvBlock([256, 512, 512])
         self.conv5 = ConvBlock([512, 512, 512])
-
+        multiplier = input_size // 32
         self.maxpool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(512 * 7 * 7, 4096)
+        self.fc1 = nn.Linear(512 * multiplier * multiplier, 4096)
         self.fc2 = nn.Linear(4096, 4096)
-        self.fc3 = nn.Linear(4096, 1000)
+        self.fc3 = nn.Linear(4096, nb_classes)
 
     def forward(self, x):
         x = self.maxpool(self.conv1(x))
@@ -48,5 +48,5 @@ class VGG16(nn.Module):
 
 
 if __name__ == '__main__':
-    model = VGG16()
+    model = VGG16(input_size=224)
     model(torch.randn(1, 3, 224, 224))

@@ -34,8 +34,8 @@ class ConvNextBlock(nn.Module):
 
 
 class ConvNext(nn.Module):
-    def __init__(self, channels, blocks_config, num_classes=1000,
-                 drop_path_rate=0., layer_scale_init_value=1e-6):
+    def __init__(self, channels=(128, 256, 512, 1024), blocks_config=(3, 3, 27, 3),
+                 nb_classes=1000, drop_path_rate=0., layer_scale_init_value=1e-6):
         super(ConvNext, self).__init__()
         self.conv1 = nn.Conv2d(3, channels[0], kernel_size=4, stride=4)
         self.norm1 = nn.LayerNorm(channels[0])
@@ -78,7 +78,7 @@ class ConvNext(nn.Module):
 
         self.norm2 = nn.LayerNorm(channels[-1])
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Linear(channels[-1], num_classes)
+        self.fc = nn.Linear(channels[-1], nb_classes)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -103,4 +103,4 @@ class ConvNext(nn.Module):
 
 if __name__ == '__main__':
     net = ConvNext(channels=[128, 256, 512, 1024], blocks_config=[3, 3, 27, 3])
-    net(torch.randn(1, 3, 224, 224))
+    net(torch.randn(1, 3, 32, 32))

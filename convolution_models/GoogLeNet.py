@@ -36,7 +36,7 @@ class InceptionBlock(nn.Module):
 
 
 class GoogLeNet(nn.Module):
-    def __init__(self):
+    def __init__(self, nb_classes=1000):
         super(GoogLeNet, self).__init__()
         self.first_block = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
@@ -74,9 +74,9 @@ class GoogLeNet(nn.Module):
         self.out_fc22 = nn.Linear(1024, 1000)
         self.avgpool3 = nn.AvgPool2d(7, stride=1)
         self.dropout = nn.Dropout(0.7)
-        self.fc = nn.Linear(1024, 1000)
+        self.fc = nn.Linear(1024, nb_classes)
 
-    def forward(self, x):
+    def forward(self, x, aux_outputs=False):
         outputs = []
 
         x = self.first_block(x)
@@ -104,9 +104,12 @@ class GoogLeNet(nn.Module):
         x = self.dropout(x)
         x = self.fc(x)
         outputs.append(x)
-        return outputs
+        if aux_outputs:
+            return outputs
+        else:
+            return x
 
 
 if __name__ == '__main__':
     net = GoogLeNet()
-    net(torch.randn(1, 3, 224, 224))
+    net(torch.randn(16, 3, 224, 224))

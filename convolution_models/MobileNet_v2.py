@@ -42,7 +42,7 @@ class BasicBlock(nn.Module):
 
 
 class MobileNetV2(nn.Module):
-    def __init__(self, nb_classes):
+    def __init__(self, nb_classes=10):
         super(MobileNetV2, self).__init__()
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1)
         self.bn1 = nn.BatchNorm2d(32)
