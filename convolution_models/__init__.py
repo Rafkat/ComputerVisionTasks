@@ -1,3 +1,6 @@
+# https://github.com/Nyandwi/ModernConvNets - all papers on one page
+
+
 __all__ = ['AlexNet', 'ConvNext', 'DenseNet', 'GoogLeNet', 'LeNet5', 'MobileNet_v1',
            'MobileNet_v2', 'ResNet34', 'ResNet50', 'ResNext', 'VGG16', 'Xception']
 
