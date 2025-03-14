@@ -5,6 +5,7 @@ import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 from torch import nn
+from tqdm import tqdm
 
 from trainings.cifar10.model_configs import models_config
 
@@ -54,7 +55,7 @@ class Cifar10Training:
 
             correct_train = 0
             total_train = 0
-            for i, (images, labels) in enumerate(train_dataloader):
+            for i, (images, labels) in tqdm(enumerate(train_dataloader), total=len(train_dataloader)):
                 images = images.to(device)
                 labels = labels.to(device)
 
@@ -90,8 +91,8 @@ class Cifar10Training:
 
             history.loc[epoch + 1] = [loss.item(), train_acc, mean_val_loss, mean_val_acc]
 
-            # print(f"Epoch [{epoch + 1}/{epochs}], Loss: {loss.item()}, "
-            #       f"Val-loss: {mean_val_loss}, Val-acc: {mean_val_acc}")
+            print(f"Epoch [{epoch + 1}/{epochs}], Loss: {loss.item()}, "
+                  f"Val-loss: {mean_val_loss}, Val-acc: {mean_val_acc}")
         history.to_csv(f'trainings/cifar10/logs/{self.model.__class__.__name__}_history.csv', index=False)
         print(f'Finished Training {self.model.__class__.__name__}')
         torch.save(self.model.state_dict(), f'trainings/cifar10/weights/{self.model.__class__.__name__}.pth')
