@@ -6,6 +6,7 @@ class PatchEmbedding(nn.Module):
     def __init__(self, image_size, patch_size, embed_dim, conv_type=False, channels=3, emb_dropout=0.):
         super(PatchEmbedding, self).__init__()
 
+        self.patch_size = patch_size
         image_height, image_width = image_size if isinstance(image_size, tuple) else (image_size, image_size)
         patch_height, patch_width = patch_size if isinstance(patch_size, tuple) else (patch_size, patch_size)
         num_patches = (image_height // patch_height) * (image_width // patch_width)
@@ -31,9 +32,13 @@ class PatchEmbedding(nn.Module):
         self.pos_embed = nn.Parameter(torch.randn(1, num_patches + 1, embed_dim))
         self.dropout = nn.Dropout(emb_dropout)
 
+    def _get_patches_manually(self, img):
+        patches = img.unfold(2, self.patch_size, self.patch_size).unfold(3, self.patch_size, self.patch_size)
+        return patches.contiguous().view(img.size(0), -1, self.patch_dim)
+
     def forward(self, x):
         if not self.conv_type:
-            x = x.reshape(x.size(0), -1, self.patch_dim)
+            x = self._get_patches_manually(x)
 
         x = self.patcher(x)
 
@@ -146,4 +151,3 @@ class ViT(nn.Module):
 if __name__ == '__main__':
     net = ViT(image_size=32, patch_size=16, nb_classes=10, dim=768, depth=12, heads=12, mlp_dim=3072)
     net(torch.randn(1, 3, 32, 32))
-
