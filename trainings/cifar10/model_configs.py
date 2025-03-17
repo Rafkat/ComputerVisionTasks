@@ -81,8 +81,8 @@ models_config = {
     'mobilenetv1': MOBILENETV1_CONFIG,
     'mobilenetv2': MOBILENETV2_CONFIG,
     'resnet34': RESNET34_CONFIG,
-    # 'resnet50': RESNET50_CONFIG,
-    # 'resnext': RESNEXT_CONFIG,
-    # 'xception': XCEPTION_CONFIG,
-    # 'densenet': DENSENET_CONFIG
+    'resnet50': RESNET50_CONFIG,
+    'resnext': RESNEXT_CONFIG,
+    'xception': XCEPTION_CONFIG,
+    'densenet': DENSENET_CONFIG
 }
