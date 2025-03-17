@@ -15,6 +15,7 @@ torchvision = "^0.21.0"
 tqdm = "^4.67.1"
 matplotlib = "^3.10.0"
 timm = "^1.0.15"
+einops = "^0.8.1"
 
 
 [build-system]
