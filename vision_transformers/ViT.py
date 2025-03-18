@@ -2,11 +2,15 @@ import torch
 from torch import nn
 
 
+# originated from https://arxiv.org/pdf/2010.11929
+
+
 class PatchEmbedding(nn.Module):
     def __init__(self, image_size, patch_size, embed_dim, conv_type=False, channels=3, emb_dropout=0.):
         super(PatchEmbedding, self).__init__()
 
         self.patch_size = patch_size
+        self.channels = channels
         image_height, image_width = image_size if isinstance(image_size, tuple) else (image_size, image_size)
         patch_height, patch_width = patch_size if isinstance(patch_size, tuple) else (patch_size, patch_size)
         num_patches = (image_height // patch_height) * (image_width // patch_width)
@@ -33,7 +37,13 @@ class PatchEmbedding(nn.Module):
         self.dropout = nn.Dropout(emb_dropout)
 
     def _get_patches_manually(self, img):
-        patches = img.unfold(2, self.patch_size, self.patch_size).unfold(3, self.patch_size, self.patch_size)
+        patches = img.unfold(1,
+                             self.channels,
+                             self.channels).unfold(2,
+                                                   self.patch_size,
+                                                   self.patch_size).unfold(3,
+                                                                           self.patch_size,
+                                                                           self.patch_size)
         return patches.contiguous().view(img.size(0), -1, self.patch_dim)
 
     def forward(self, x):
@@ -93,7 +103,7 @@ class Attention(nn.Module):
         x = self.norm(x)
 
         qkv = self.to_qkv(x).chunk(3, dim=-1)
-        q, k, v = map(lambda t: t.reshape(t.size(0), self.heads, t.size(1), -1), qkv)
+        q, k, v = map(lambda t: t.reshape(t.size(0), t.size(1), self.heads, -1).permute(0, 2, 1, 3), qkv)
 
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
@@ -149,5 +159,10 @@ class ViT(nn.Module):
 
 
 if __name__ == '__main__':
-    net = ViT(image_size=32, patch_size=16, nb_classes=10, dim=768, depth=12, heads=12, mlp_dim=3072)
-    net(torch.randn(1, 3, 32, 32))
+    net = ViT(image_size=224, patch_size=16, nb_classes=10, dim=768, depth=12, heads=12, mlp_dim=3072)
+    up_side = torch.hstack([torch.cat([torch.ones(16, 16), torch.zeros(16, 16)], dim=1) for _ in range(224 // 32)])
+    down_side = torch.hstack([torch.cat([torch.zeros(16, 16), torch.ones(16, 16)], dim=1) for _ in range(224 // 32)])
+    test_tensor = torch.vstack([torch.cat([up_side, down_side], dim=0) for _ in range(224 // 32)])
+    test_tensor = test_tensor.expand(3, -1, -1)
+    test_tensor = test_tensor.unsqueeze(0)
+    print(net(test_tensor).shape)

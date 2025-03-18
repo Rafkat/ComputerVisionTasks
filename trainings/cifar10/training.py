@@ -47,7 +47,7 @@ class Cifar10Training:
         return train_dataloader, val_dataloader
 
     def train(self, train_dataloader, val_dataloader, optimizer, loss_func, epochs, device, postfix='v1'):
-        print('Start training...')
+        print(f'Start training {self.model.__class__.__name__}')
         history = pd.DataFrame(columns=['loss', 'acc', 'val_loss', 'val_acc'])
         print('Training')
         for epoch in range(epochs):
