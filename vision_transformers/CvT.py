@@ -62,9 +62,9 @@ class Attention(nn.Module):
 
     def forward(self, x, h, w):
         x = x.view(x.size(0), h, w, -1).permute(0, 3, 1, 2)
-        q = self.to_q(self.conv_q(x).permute(0, 2, 3, 1).view(x.size(0), -1, x.size(1)))
-        k = self.to_k(self.conv_k(x).permute(0, 2, 3, 1).view(x.size(0), -1, x.size(1)))
-        v = self.to_v(self.conv_v(x).permute(0, 2, 3, 1).view(x.size(0), -1, x.size(1)))
+        q = self.conv_q(x).permute(0, 2, 3, 1).view(x.size(0), -1, x.size(1))
+        k = self.conv_k(x).permute(0, 2, 3, 1).view(x.size(0), -1, x.size(1))
+        v = self.conv_v(x).permute(0, 2, 3, 1).view(x.size(0), -1, x.size(1))
 
         q = q.view(q.size(0), q.size(1), self.num_heads, -1).permute(0, 2, 1, 3)
         k = k.view(k.size(0), k.size(1), self.num_heads, -1).permute(0, 2, 1, 3)
