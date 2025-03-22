@@ -143,7 +143,6 @@ class ViT(nn.Module):
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
         self.pool = pool
-        self.to_latent = nn.Identity()
 
         self.mlp_head = nn.Linear(dim, nb_classes)
 
@@ -154,7 +153,6 @@ class ViT(nn.Module):
 
         x = x.mean(dim=1) if self.pool == 'mean' else x[:, 0]
 
-        x = self.to_latent(x)
         return self.mlp_head(x)
 
 
