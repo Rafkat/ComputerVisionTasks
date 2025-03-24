@@ -50,10 +50,6 @@ class Attention(nn.Module):
             nn.Conv2d(in_channels=dim_in, out_channels=dim_out, kernel_size=1, stride=1)
         )
 
-        self.to_q = nn.Linear(dim_out, dim_out)
-        self.to_k = nn.Linear(dim_out, dim_out)
-        self.to_v = nn.Linear(dim_out, dim_out)
-
         self.softmax = nn.Softmax(dim=-1)
         self.to_out = nn.Sequential(
             nn.Linear(dim_out, dim_out),
