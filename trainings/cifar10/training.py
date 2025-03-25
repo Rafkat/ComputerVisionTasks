@@ -5,6 +5,7 @@ import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 from torch import nn
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
 from trainings.cifar10.model_configs import models_config
@@ -50,6 +51,9 @@ class Cifar10Training:
         print(f'Start training {self.model.__class__.__name__}')
         history = pd.DataFrame(columns=['loss', 'acc', 'val_loss', 'val_acc'])
         print('Training')
+
+        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.1)
+        early_stopping = EarlyStopping(patience=10)
         for epoch in range(epochs):
             self.model.train()
 
@@ -90,15 +94,48 @@ class Cifar10Training:
                 mean_val_acc = correct / total * 100
 
             history.loc[epoch + 1] = [loss.item(), train_acc, mean_val_loss, mean_val_acc]
+            scheduler.step(mean_val_loss)
 
             print(f"Epoch [{epoch + 1}/{epochs}], Loss: {loss.item()}, "
                   f"Val-loss: {mean_val_loss}, Val-acc: {mean_val_acc}")
+
+            early_stopping(mean_val_loss, self.model)
+            if early_stopping.early_stop:
+                print('Early stopping')
+                break
 
         history.to_csv(f'trainings/cifar10/logs/{self.model.__class__.__name__}_history_{postfix}.csv',
                        index=False)
         print(f'Finished Training {self.model.__class__.__name__}')
         torch.save(self.model.state_dict(), f'trainings/cifar10/weights/{self.model.__class__.__name__}.pth')
         print(f'Model weights saved to {self.model.__class__.__name__}.pth')
+
+
+class EarlyStopping:
+    def __init__(self, patience=5, delta=0):
+        self.patience = patience
+        self.delta = delta
+        self.best_score = None
+        self.early_stop = False
+        self.counter = 0
+        self.best_model_state = None
+
+    def __call__(self, val_loss, model):
+        score = -val_loss
+        if self.best_score is None:
+            self.best_score = score
+            self.best_model_state = model.state_dict()
+        elif score < self.best_score + self.delta:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.best_model_state = model.state_dict()
+            self.counter = 0
+
+    def load_best_model(self, model):
+        model.load_state_dict(self.best_model_state)
 
 
 if __name__ == '__main__':

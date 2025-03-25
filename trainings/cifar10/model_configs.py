@@ -1,19 +1,19 @@
 import convolution_models as cm
 
 VGG16_CONFIG = {
-    'batch_size': 1024,
+    'batch_size': 128,
     'img_size': 32,
     'model': cm.VGG16.VGG16(input_size=32, nb_classes=10),
 }
 
 ALEXNET_CONFIG = {
-    'batch_size': 1024,
+    'batch_size': 128,
     'img_size': 32,
     'model': cm.AlexNet.AlexNet(input_size=32, nb_classes=10),
 }
 
 CONVNEXT_CONFIG = {
-    'batch_size': 1024,
+    'batch_size': 128,
     'img_size': 32,
     'model': cm.ConvNext.ConvNext(nb_classes=10)
 }
@@ -25,13 +25,13 @@ GOOGLENET_CONFIG = {
 }
 
 LENET_CONFIG = {
-    'batch_size': 256,
+    'batch_size': 128,
     'img_size': 224,
     'model': cm.LeNet5.LeNet5(in_channels=3, nb_classes=10),
 }
 
 MOBILENETV1_CONFIG = {
-    'batch_size': 256,
+    'batch_size': 128,
     'img_size': 224,
     'model': cm.MobileNet_v1.MobileNetV1(nb_classes=10),
 }
@@ -43,7 +43,7 @@ MOBILENETV2_CONFIG = {
 }
 
 RESNET34_CONFIG = {
-    'batch_size': 256,
+    'batch_size': 128,
     'img_size': 224,
     'model': cm.ResNet34.ResNet34(nb_classes=10),
 }
