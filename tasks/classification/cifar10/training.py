@@ -8,7 +8,7 @@ from torch import nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
-from trainings.cifar10.model_configs import models_config
+from tasks.classification.cifar10.model_configs import models_config
 
 
 class Cifar10Training:
