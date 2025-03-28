@@ -104,10 +104,10 @@ class Cifar10Training:
                 print('Early stopping')
                 break
 
-        history.to_csv(f'trainings/cifar10/logs/{self.model.__class__.__name__}_history_{postfix}.csv',
+        history.to_csv(f'tasks/classification/cifar10/logs/{self.model.__class__.__name__}_history_{postfix}.csv',
                        index=False)
         print(f'Finished Training {self.model.__class__.__name__}')
-        torch.save(self.model.state_dict(), f'trainings/cifar10/weights/{self.model.__class__.__name__}.pth')
+        torch.save(self.model.state_dict(), f'tasks/classification/cifar10/weights/{self.model.__class__.__name__}.pth')
         print(f'Model weights saved to {self.model.__class__.__name__}.pth')
 
 
