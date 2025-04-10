@@ -12,4 +12,4 @@ for model_config in models_config.values():
                                                                 batch_size=model_config['batch_size'])
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9, weight_decay=0.1)
     training.train(train_dataloader, val_dataloader, optimizer,
-                   loss_func=nn.CrossEntropyLoss(), epochs=50, device=dvc, postfix='early_stop_sgd_no_momentum')
+                   loss_func=nn.CrossEntropyLoss(), epochs=50, device=dvc, postfix='early_stop_sgd_momentum_wd')

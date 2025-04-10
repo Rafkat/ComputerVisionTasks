@@ -73,16 +73,16 @@ DENSENET_CONFIG = {
 }
 
 models_config = {
-#    'vgg16': VGG16_CONFIG,
-#    'alexnet': ALEXNET_CONFIG,
-#    'convnext': CONVNEXT_CONFIG,
-#    'googlenet': GOOGLENET_CONFIG,
-#    'lenet': LENET_CONFIG,
-#    'mobilenetv1': MOBILENETV1_CONFIG,
-#    'mobilenetv2': MOBILENETV2_CONFIG,
-#    'resnet34': RESNET34_CONFIG,
-#    'resnet50': RESNET50_CONFIG,
-    'resnext': RESNEXT_CONFIG,
-    'xception': XCEPTION_CONFIG,
-    'densenet': DENSENET_CONFIG
+    'vgg16': VGG16_CONFIG,
+    'alexnet': ALEXNET_CONFIG,
+    'convnext': CONVNEXT_CONFIG,
+    'googlenet': GOOGLENET_CONFIG,
+    'lenet': LENET_CONFIG,
+    'mobilenetv1': MOBILENETV1_CONFIG,
+    'mobilenetv2': MOBILENETV2_CONFIG,
+    'resnet34': RESNET34_CONFIG,
+    'resnet50': RESNET50_CONFIG,
+#    'resnext': RESNEXT_CONFIG,
+#    'xception': XCEPTION_CONFIG,
+#    'densenet': DENSENET_CONFIG
 }
