@@ -1,13 +1,119 @@
 import math
+import os
 
+import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
+from PIL import Image
+from bs4 import BeautifulSoup
+from torch.utils.data.sampler import SubsetRandomSampler
 
 from models.detection_convolution.SSD_utils import cxcy_to_xy, decode_bboxes, find_IoU
 
-
 # originated from https://arxiv.org/pdf/1512.02325
+
+
+classes_map = {'background': 0, 'pineapple': 1, 'snake fruit': 2, 'dragon fruit': 3, 'banana': 4}
+
+
+def combine(batch):
+    images = []
+    boxes = []
+    labels = []
+
+    for b in batch:
+        images.append(b[0])
+        boxes.append(b[1])
+        labels.append(b[2])
+
+    images = torch.stack(images, dim=0)
+    return images, boxes, labels
+
+
+class TrainDataset(Dataset):
+    def __init__(self, image_dir='./tasks/detection/fruits/data/images',
+                 annot_dir='./tasks/detection/fruits/data/annotations', transform=None):
+        self.transform = transform
+
+        self.image_dir = image_dir
+        self.annot_dir = annot_dir
+
+        self.image_paths = list(sorted(os.listdir(image_dir)))
+        self.annot_paths = list(sorted(os.listdir(annot_dir)))
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        image_path = self.image_paths[idx]
+        annot_path = self.annot_paths[idx]
+        image = Image.open(os.path.join(self.image_dir, image_path)).convert('RGB')
+        annot = open(os.path.join(self.annot_dir, annot_path)).read()
+        soup = BeautifulSoup(annot, 'html.parser')
+        classes = []
+        bboxes = []
+        img_width, img_height = int(soup.find('width').string), int(soup.find('height').string)
+        for obj in soup.find_all('object'):
+            classes.append(classes_map[obj.find('name').string])
+
+            x_min = max(0, int(obj.find('xmin').string))
+            y_min = max(0, int(obj.find('ymin').string))
+            x_max = min(img_width, int(obj.find('xmax').string))
+            y_max = min(img_height, int(obj.find('ymax').string))
+
+            bboxes.append([x_min, y_min, x_max, y_max])
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, torch.FloatTensor(bboxes), torch.LongTensor(classes)
+
+
+class SSDTrainDataLoader:
+    def __init__(self, batch_size=128, random_seed=42, valid_size=0.2, shuffle=True):
+        self.batch_size = batch_size
+        self.random_seed = random_seed
+        self.valid_size = valid_size
+        self.shuffle = shuffle
+
+    def load_data(self, image_dir, annot_dir):
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+
+        train_transform = transforms.Compose([
+            transforms.Resize((300, 300)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)
+        ])
+
+        valid_transform = transforms.Compose([
+            transforms.Resize((300, 300)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)
+        ])
+
+        train_dataset = TrainDataset(image_dir=image_dir, annot_dir=annot_dir, transform=train_transform)
+        valid_dataset = TrainDataset(image_dir=image_dir, annot_dir=annot_dir, transform=valid_transform)
+
+        num_train = len(train_dataset)
+        indices = list(range(num_train))
+        split = int(np.floor(self.valid_size * num_train))
+
+        if self.shuffle:
+            np.random.seed(self.random_seed)
+            np.random.seed(indices)
+
+        train_idx, valid_idx = indices[split:], indices[:split]
+        train_sample = SubsetRandomSampler(train_idx)
+        valid_sample = SubsetRandomSampler(valid_idx)
+
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, sampler=train_sample, collate_fn=combine)
+        valid_loader = DataLoader(valid_dataset, batch_size=self.batch_size, sampler=valid_sample, collate_fn=combine)
+        return train_loader, valid_loader
+
 
 class ConvBlock(nn.Module):
     def __init__(self, channels):
@@ -141,6 +247,7 @@ class SingleShotMultiBoxDetector(nn.Module):
         self.head = Head(nb_classes)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.default_boxes = self.create_default_boxes()
+        self.nb_classes = nb_classes
 
     def forward(self, x):
         x, out = self.encoder(x)
@@ -199,7 +306,7 @@ class SingleShotMultiBoxDetector(nn.Module):
             image_labels = []
             image_scores = []
 
-            for c in range(1, self.num_classes):
+            for c in range(1, self.nb_classes):
                 class_scores = class_pred[i][:, c]
                 score_above_min_score = class_scores > min_score
                 n_above_min_score = score_above_min_score.sum().item()
@@ -259,4 +366,10 @@ if __name__ == '__main__':
     head = Head()
     # print(net(torch.randn(1, 3, 300, 300))[1].shape)
     # print(neck_net(torch.randn(1, 512, 19, 19))[-1].shape)
-    print(head(neck_net(torch.randn(1, 512, 19, 19), torch.randn(1, 512, 38, 38))))
+    res = head(neck_net(torch.randn(1, 512, 19, 19), torch.randn(1, 512, 38, 38)))
+    print(res[0].shape, res[1].shape)
+
+    train_dataloader, val_dataloader = SSDTrainDataLoader(batch_size=16).load_data()
+    print(len(train_dataloader))
+    images, boxes, labels = next(iter(train_dataloader))
+    # print(images.shape, boxes, labels)

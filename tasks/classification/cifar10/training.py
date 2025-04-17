@@ -9,6 +9,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
 from tasks.classification.cifar10.model_configs import models_config
+from tasks.utils import EarlyStopping
 
 
 class Cifar10Training:
@@ -109,33 +110,6 @@ class Cifar10Training:
         print(f'Finished Training {self.model.__class__.__name__}')
         torch.save(self.model.state_dict(), f'tasks/classification/cifar10/weights/{self.model.__class__.__name__}.pth')
         print(f'Model weights saved to {self.model.__class__.__name__}.pth')
-
-
-class EarlyStopping:
-    def __init__(self, patience=5, delta=0):
-        self.patience = patience
-        self.delta = delta
-        self.best_score = None
-        self.early_stop = False
-        self.counter = 0
-        self.best_model_state = None
-
-    def __call__(self, val_loss, model):
-        score = -val_loss
-        if self.best_score is None:
-            self.best_score = score
-            self.best_model_state = model.state_dict()
-        elif score < self.best_score + self.delta:
-            self.counter += 1
-            if self.counter >= self.patience:
-                self.early_stop = True
-        else:
-            self.best_score = score
-            self.best_model_state = model.state_dict()
-            self.counter = 0
-
-    def load_best_model(self, model):
-        model.load_state_dict(self.best_model_state)
 
 
 if __name__ == '__main__':

@@ -15,11 +15,11 @@ def intersect(boxes1, boxes2):
 
 def find_IoU(boxes1, boxes2):
     inter = intersect(boxes1, boxes2)
-    area_boxes1 = (boxes1[:, 2] - boxes1[:, 0]) * (boxes1[: 3] - boxes1[:, 1])
+    area_boxes1 = (boxes1[:, 2] - boxes1[:, 0]) * (boxes1[:, 3] - boxes1[:, 1])
     area_boxes2 = (boxes2[:, 2] - boxes2[:, 0]) * (boxes2[:, 3] - boxes2[:, 1])
 
     area_boxes1 = area_boxes1.unsqueeze(1).expand_as(inter)
-    area_boxes2 = area_boxes2.unsqueeze(1).expand_as(inter)
+    area_boxes2 = area_boxes2.unsqueeze(0).expand_as(inter)
     union = area_boxes1 + area_boxes2 - inter
     return inter / union
 

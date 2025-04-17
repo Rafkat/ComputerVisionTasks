@@ -13,6 +13,9 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
+from tasks.utils import EarlyStopping
 
 
 # originated from https://arxiv.org/pdf/1311.2524
@@ -42,11 +45,12 @@ class Config:
         self.MAX_PROP_INFER_ROI = 1000
 
         self.NMS_THRESHOLD = 0.1
+        self.CLASSIFIER_PRETRAINED_PATH = "./rcnn_model.pth"
 
 
 class TrainDataset(Dataset):
-    def __init__(self, data_folder='./data/boxes_v2',
-                 dataset_file='./data/boxes_v2.txt',
+    def __init__(self, data_folder='./tasks/detection/fruits/data/boxes_v2',
+                 dataset_file='./tasks/detection/fruits/data/boxes_v2.txt',
                  transform=None):
         self.transform = transform
 
@@ -74,7 +78,7 @@ class TrainDataset(Dataset):
         return image, label
 
 
-class TrainDataLoader:
+class RCNNTrainDataLoader:
     def __init__(self, batch_size=128, random_seed=42, valid_size=0.2, shuffle=True):
         self.batch_size = batch_size
         self.random_seed = random_seed
@@ -139,22 +143,18 @@ class InferDataset(Dataset):
 class RegionProposalExtraction:
     ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
 
-    def __init__(self, image_name_path, annot_name_path, save_data=False):
+    def __init__(self, image_name_path, annot_name_path):
         self.image_name_path = image_name_path
         self.annot_name_path = annot_name_path
-        self.image_name_list = os.listdir(image_name_path)
-        self.annot_name_list = os.listdir(annot_name_path)
+        self.image_name_list = list(sorted(os.listdir(image_name_path)))
+        self.annot_name_list = list(sorted(os.listdir(annot_name_path)))
         self.total_boxes = 0
         self.config = Config()
-        self.save_data = save_data
-        if self.save_data:
-            self.save_box_path = './data/boxes_v2'
-            self.save_text_path = open('./data/boxes_v2_test.txt', 'a')
+        self.save_box_path = '../../tasks/detection/fruits/data/boxes_v2'
+        self.save_text_path = open('../../tasks/detection/fruits/data/boxes_v2.txt', 'a')
 
     def get_roi(self):
-        gt_boxes_classes = []
-        proposed_boxes_classes = []
-        for i, annot_name in tqdm(enumerate(self.annot_name_list)):
+        for i, annot_name in tqdm(enumerate(self.annot_name_list), total=len(self.annot_name_list)):
             full_annot_path = os.path.join(self.annot_name_path, annot_name)
             full_image_path = os.path.join(self.image_name_path, self.image_name_list[i])
 
@@ -171,20 +171,10 @@ class RegionProposalExtraction:
             image, rects = self.get_image_prop_boxes(full_image_path)
             proposed_rects = [(x_min, y_min, x_min + w, y_min + h) for (x_min, y_min, w, h) in rects]
 
-            if self.save_data:
-                self.get_gt_positive_samples(ground_truth_boxes, ground_truth_class_indices, image, self.save_data)
-                self.get_prop_boxes(proposed_rects, ground_truth_boxes, ground_truth_class_indices, image,
-                                    self.save_data)
-            else:
-                gt_boxes_classes.extend(
-                    self.get_gt_positive_samples(ground_truth_boxes, ground_truth_class_indices, image))
-                proposed_boxes_classes.extend(
-                    self.get_prop_boxes(proposed_rects, ground_truth_boxes, ground_truth_class_indices, image))
+            self.get_gt_positive_samples(ground_truth_boxes, ground_truth_class_indices, image)
+            self.get_prop_boxes(proposed_rects, ground_truth_boxes, ground_truth_class_indices, image)
 
-        if self.save_data:
-            self.save_text_path.close()
-        else:
-            return gt_boxes_classes, proposed_boxes_classes
+        self.save_text_path.close()
 
     @classmethod
     def get_image_prop_boxes(cls, image_path):
@@ -259,9 +249,8 @@ class RegionProposalExtraction:
             return False
         return True
 
-    def get_gt_positive_samples(self, ground_truth_boxes, ground_truth_class_indices, image, save_data=False):
+    def get_gt_positive_samples(self, ground_truth_boxes, ground_truth_class_indices, image):
         # added ground truth images as positive samples
-        gt_rois = []
         for j, gt_box in enumerate(ground_truth_boxes):
             class_index_roi = ground_truth_class_indices[j]
 
@@ -271,23 +260,17 @@ class RegionProposalExtraction:
             if gt_roi.size <= 0:
                 continue
 
-            if save_data:
-                gt_box_name = f'{self.total_boxes}.jpg'
-                gt_box_path = os.path.join(self.save_box_path, gt_box_name)
-                self.total_boxes += 1
+            gt_box_name = f'{self.total_boxes}.jpg'
+            gt_box_path = os.path.join(self.save_box_path, gt_box_name)
+            self.total_boxes += 1
 
-                cv2.imwrite(gt_box_path, gt_roi)
+            cv2.imwrite(gt_box_path, gt_roi)
 
-                self.save_text_path.write(f'{class_index_roi} {gt_box_name}\n')
-            else:
-                gt_rois.append((gt_roi, class_index_roi))
+            self.save_text_path.write(f'{class_index_roi} {gt_box_name}\n')
 
-        return gt_rois
-
-    def get_prop_boxes(self, proposed_rects, ground_truth_boxes, ground_truth_class_indices, image, save_data=False):
+    def get_prop_boxes(self, proposed_rects, ground_truth_boxes, ground_truth_class_indices, image):
         n_pos = 0
         n_neg = 0
-        prop_boxes = []
         # get proposed boxes
         for prop_rect in proposed_rects[:min(len(proposed_rects), self.config.MAX_PROPOSED_ROI)]:
             prop_x_min, prop_y_min, prop_x_max, prop_y_max = prop_rect
@@ -309,19 +292,15 @@ class RegionProposalExtraction:
                     and prop_box_name is not None
                     and prop_box_path is not None
                     and class_index is not None):
-                if save_data:
-                    self.total_boxes += 1
-                    cv2.imwrite(prop_box_path, prop_box)
-                    self.save_text_path.write(f'{class_index} {prop_box_name}\n')
-                else:
-                    prop_boxes.append((prop_box, class_index))
+
+                self.total_boxes += 1
+                cv2.imwrite(prop_box_path, prop_box)
+                self.save_text_path.write(f'{class_index} {prop_box_name}\n')
 
                 if class_index == 0:
                     n_neg += 1
                 else:
                     n_pos += 1
-
-        return prop_boxes
 
     def is_negative(self, ground_truth_boxes, ground_truth_class_indices, prop_rect, image, n_pos, n_neg):
         prop_box = prop_box_name = prop_box_path = class_index = None
@@ -363,15 +342,28 @@ class RCNN:
         super(RCNN, self).__init__()
         self.config = Config()
         self.classifier = torchvision.models.efficientnet_v2_s(weights='DEFAULT')
+        self.classifier.classifier = torch.nn.Sequential(
+            torch.nn.Dropout(0.2),
+            torch.nn.Linear(in_features=1280, out_features=512),
+            torch.nn.ReLU(),
+            torch.nn.Linear(in_features=512, out_features=256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(in_features=256, out_features=128),
+            torch.nn.ReLU(),
+            torch.nn.Linear(in_features=128, out_features=self.config.NUM_CLASSES),
+        )
         if pretrained:
             self.classifier.load_state_dict(torch.load(self.config.CLASSIFIER_PRETRAINED_PATH))
 
         self.prop_rects_extractor = RegionProposalExtraction.get_image_prop_boxes
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.classifier.to(self.device)
 
     def train(self, train_dataloader, val_dataloader, criterion, optimizer, epochs):
         history = defaultdict(list)
-
+        self.classifier.to(self.device)
+        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.1)
+        early_stopping = EarlyStopping(patience=10)
         for e in range(epochs):
             self.classifier.train()
             size = 0
@@ -408,6 +400,8 @@ class RCNN:
                     images = images.to(self.device)
                     labels = labels.to(self.device)
 
+                    size += labels.size(0)
+
                     outputs = self.classifier(images)
 
                     loss = criterion(outputs, labels)
@@ -419,14 +413,23 @@ class RCNN:
 
             test_loss /= len(val_dataloader)
             test_acc /= size
+            scheduler.step(test_loss)
 
             history['train_loss'].append(train_loss)
             history['train_acc'].append(train_acc)
             history['test_loss'].append(test_loss)
             history['test_acc'].append(test_acc)
+            print(f"[INFO]: Epoch {e + 1} / {epochs}, Train loss: {train_loss:.4f}, "
+                  f"Train acc: {train_acc:.4f}, Test loss: {test_loss:.4f}, Test acc: {test_acc:.4f}")
+
+            early_stopping(test_loss, self.classifier)
+            if early_stopping.early_stop:
+                print('Early stopping')
+                break
+
         return history
 
-    def eval(self, image_path):
+    def detect(self, image_path):
         image = cv2.imread(image_path)
         prop_rects = self.prop_rects_extractor(image)
 
@@ -530,5 +533,13 @@ class RCNN:
 
 
 if __name__ == '__main__':
-    rpe = RegionProposalExtraction('./data/images', './data/annotations')
+    rpe = RegionProposalExtraction('../../tasks/detection/data/images', '../../tasks/detection/data/annotations')
     rpe.get_roi()
+    # train_dataloader, val_dataloader = TrainDataLoader(batch_size=16, random_seed=42, valid_size=0.2,
+    #                                                    shuffle=True).load_data()
+    # model = RCNN()
+    # criterion = torch.nn.CrossEntropyLoss()
+    # optimizer = torch.optim.Adam(model.classifier.parameters(),
+    #                              lr=model.config.LEARNING_RATE,
+    #                              weight_decay=model.config.WEIGHT_DECAY)
+    # model.train(train_dataloader, val_dataloader, criterion, optimizer, model.config.NUM_EPOCHS)
