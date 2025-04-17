@@ -38,7 +38,7 @@ def rcnn_training(n_epochs, device, lr):
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    n_epochs = 50
+    n_epochs = 600
     lr = 1e-4
 
     ssd_training(n_epochs, device, lr)
