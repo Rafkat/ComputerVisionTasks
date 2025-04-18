@@ -55,8 +55,8 @@ def main():
     n_epochs = 600
     lr = 1e-4
 
-    ssd_training(n_epochs, device, lr)
-    # rcnn_training(n_epochs, device, lr)
+    #ssd_training(n_epochs, device, lr)
+    rcnn_training(n_epochs, device, lr)
 
 
 if __name__ == '__main__':

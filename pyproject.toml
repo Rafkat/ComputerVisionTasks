@@ -21,7 +21,6 @@ xmltodict = "^0.14.2"
 scikit-learn = "^1.6.1"
 pycocotools = "^2.0.8"
 beautifulsoup4 = "^4.13.3"
-opencv-python = "^4.11.0.86"
 opencv-contrib-python = "^4.11.0.86"
 
 
