@@ -46,7 +46,7 @@ def rcnn_training(n_epochs, device, lr):
     history = rcnn_train.train(criterion=nn.CrossEntropyLoss(),
                                optimizer=torch.optim.Adam(rcnn_train.model.parameters(), lr=lr),
                                epochs=n_epochs)
-    torch.save(rcnn_train.model.state_dict(), './rcnn_model.pth')
+    torch.save(rcnn_train.model.state_dict(), 'models/detection_convolution/rcnn_model.pth')
     pd.DataFrame(history).to_csv('./tasks/detection/fruits/logs/rcnn_history.csv', index=False)
 
 

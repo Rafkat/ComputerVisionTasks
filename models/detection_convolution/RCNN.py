@@ -359,6 +359,15 @@ class RCNN:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.classifier.to(self.device)
 
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+
+        self.infer_transform = transforms.Compose([
+            transforms.Resize((384, 384)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)
+        ])
+
     def train(self, train_dataloader, val_dataloader, criterion, optimizer, epochs):
         history = defaultdict(list)
         self.classifier.to(self.device)
@@ -430,8 +439,7 @@ class RCNN:
         return history
 
     def detect(self, image_path):
-        image = cv2.imread(image_path)
-        prop_rects = self.prop_rects_extractor(image)
+        image, prop_rects = self.prop_rects_extractor(image_path)
 
         proposals = []
         rois = []
@@ -443,10 +451,9 @@ class RCNN:
             proposals.append(roi)
             rois.append((prop_x_min, prop_y_min, prop_x_max, prop_y_max))
 
-        proposals = np.asanyarray(proposals)
         rois = np.asanyarray(rois)
 
-        infer_dataset = InferDataset(prop_array=proposals)
+        infer_dataset = InferDataset(prop_array=proposals, infer_transform=self.infer_transform)
         infer_dataloader = DataLoader(dataset=infer_dataset, batch_size=8, shuffle=False)
 
         probabilities = []
@@ -492,12 +499,11 @@ class RCNN:
                 val_sm_box_cl = value_softmax_detec[idx_sm_box_cl]
                 box_cl = rois_obj_detec[idx_sm_box_cl]
                 sorted_val_sm_box_cl = np.argsort(val_sm_box_cl)
-                max_val_sm_box_cl = val_sm_box_cl[sorted_val_sm_box_cl[-1]]
                 max_box_cl = box_cl[sorted_val_sm_box_cl[-1]]
                 max_idx_sm_box_cl = idx_sm_box_cl[sorted_val_sm_box_cl[-1]]
 
-                P = np.delete(P, np.where(P == idx_sm_box_cl[sorted_val_sm_box_cl[-1]]))
-                keep.append(idx_sm_box_cl[sorted_val_sm_box_cl[-1]])
+                P = np.delete(P, P == max_idx_sm_box_cl)
+                keep.append(max_idx_sm_box_cl)
 
                 for i in P:
                     if i in idx_sm_box_cl:
@@ -508,8 +514,6 @@ class RCNN:
                             P = np.delete(P, np.where(P == i))
 
         index_softmax_detec_final = index_softmax_detec[keep]
-        value_softmax_detec_final = value_softmax_detec[keep]
-        prop_obj_detec_final = prop_obj_detec[keep]
         rois_obj_detec_final = rois_obj_detec[keep]
 
         image = cv2.imread(image_path)
@@ -533,13 +537,15 @@ class RCNN:
 
 
 if __name__ == '__main__':
-    rpe = RegionProposalExtraction('../../tasks/detection/data/images', '../../tasks/detection/data/annotations')
-    rpe.get_roi()
+    # rpe = RegionProposalExtraction('../../tasks/detection/data/images', '../../tasks/detection/data/annotations')
+    # rpe.get_roi()
     # train_dataloader, val_dataloader = TrainDataLoader(batch_size=16, random_seed=42, valid_size=0.2,
     #                                                    shuffle=True).load_data()
-    # model = RCNN()
+    model = RCNN(pretrained=True)
     # criterion = torch.nn.CrossEntropyLoss()
     # optimizer = torch.optim.Adam(model.classifier.parameters(),
     #                              lr=model.config.LEARNING_RATE,
     #                              weight_decay=model.config.WEIGHT_DECAY)
     # model.train(train_dataloader, val_dataloader, criterion, optimizer, model.config.NUM_EPOCHS)
+    img_path = '../../tasks/detection/fruits/data/images/fruit180.png'
+    model.detect(img_path)
