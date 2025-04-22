@@ -2,8 +2,9 @@ import torch
 
 from models.detection_convolution.RCNN import RCNN, RCNNTrainDataLoader
 from models.detection_convolution.SSD import SingleShotMultiBoxDetector, SSDTrainDataLoader
-from tasks.detection.fruits.utils import calculate_mAP, MultiBoxLoss
 from tqdm import tqdm
+
+from tasks.utils import calculate_mAP, MultiBoxLoss
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -17,6 +18,8 @@ class SSDTraining:
             batch_size=self.batch_size).load_data(
             './tasks/detection/fruits/data/images',
             './tasks/detection/fruits/data/annotations')
+        self.label_map = {'background': 0, 'pineapple': 1, 'snake fruit': 2, 'dragon fruit': 3, 'banana': 4}
+        self.rev_label_map = {v: k for k, v in self.label_map.items()}
 
     def train(self, criterion, optimizer):
         self.model.train()
@@ -44,8 +47,8 @@ class SSDTraining:
             detect_boxes = []
             detect_labels = []
             detect_scores = []
-            t_boxes = []
-            t_labels = []
+            target_boxes = []
+            target_labels = []
             for i, (images, boxes, labels) in tqdm(enumerate(self.val_dataloader), total=len(self.val_dataloader)):
                 images = images.to(device)
                 boxes = [b.to(device) for b in boxes]
@@ -59,9 +62,11 @@ class SSDTraining:
                 detect_boxes.extend(detect_boxes_batch)
                 detect_labels.extend(detect_labels_batch)
                 detect_scores.extend(detect_score_batch)
-                t_boxes.extend(boxes)
-                t_labels.extend(labels)
-            APs, mAP = calculate_mAP(detect_boxes, detect_labels, detect_scores, t_boxes, t_labels)
+                target_boxes.extend(boxes)
+                target_labels.extend(labels)
+            APs, mAP = calculate_mAP(detect_boxes, detect_labels,
+                                     detect_scores, target_boxes, target_labels,
+                                     self.label_map, self.rev_label_map)
 
         return total_loss, APs, mAP
 

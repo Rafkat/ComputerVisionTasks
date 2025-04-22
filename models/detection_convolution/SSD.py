@@ -16,7 +16,9 @@ from models.detection_convolution.SSD_utils import cxcy_to_xy, decode_bboxes, fi
 # originated from https://arxiv.org/pdf/1512.02325
 
 
-classes_map = {'background': 0, 'pineapple': 1, 'snake fruit': 2, 'dragon fruit': 3, 'banana': 4}
+classes_map = {'background': 0, 'person': 1, 'bird': 2, 'cat': 3, 'cow': 4, 'dog': 5, 'horse': 6, 'sheep': 7,
+               'aeroplane': 8, 'bicycle': 9, 'boat': 10, 'bus': 11, 'car': 12, 'motorbike': 13, 'train': 14,
+               'bottle': 15, 'chair': 16, 'diningtable': 17, 'pottedplant': 18, 'sofa': 19, 'tvmonitor': 20}
 
 
 def combine(batch):
@@ -35,8 +37,9 @@ def combine(batch):
 
 class TrainDataset(Dataset):
     def __init__(self, image_dir='./tasks/detection/fruits/data/images',
-                 annot_dir='./tasks/detection/fruits/data/annotations', transform=None):
+                 annot_dir='./tasks/detection/fruits/data/annotations', transform=None, image_size=300):
         self.transform = transform
+        self.image_size = image_size
 
         self.image_dir = image_dir
         self.annot_dir = annot_dir
@@ -64,7 +67,14 @@ class TrainDataset(Dataset):
             x_max = min(img_width, int(obj.find('xmax').string))
             y_max = min(img_height, int(obj.find('ymax').string))
 
-            bboxes.append([x_min, y_min, x_max, y_max])
+            bbox = [x_min, y_min, x_max, y_max]
+            if self.transform:
+                x_min /= image.width
+                x_max /= image.width
+                y_min /= image.height
+                y_max /= image.height
+                bbox = [x_min, y_min, x_max, y_max]
+            bboxes.append(bbox)
 
         if self.transform:
             image = self.transform(image)
@@ -110,8 +120,10 @@ class SSDTrainDataLoader:
         train_sample = SubsetRandomSampler(train_idx)
         valid_sample = SubsetRandomSampler(valid_idx)
 
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, sampler=train_sample, collate_fn=combine)
-        valid_loader = DataLoader(valid_dataset, batch_size=self.batch_size, sampler=valid_sample, collate_fn=combine)
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, sampler=train_sample,
+                                  collate_fn=combine, num_workers=4, pin_memory=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=self.batch_size, sampler=valid_sample,
+                                  collate_fn=combine, num_workers=4, pin_memory=True)
         return train_loader, valid_loader
 
 
