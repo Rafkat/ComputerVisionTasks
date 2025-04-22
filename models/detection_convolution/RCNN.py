@@ -478,7 +478,6 @@ class RCNN:
 
         value_softmax_detec = value_softmax_arr[indices]
         index_softmax_detec = index_softmax_arr[indices]
-        prop_obj_detec = probabilities[indices]
         rois_obj_detec = rois[indices]
 
         unique_class = np.unique(index_softmax_detec)
@@ -539,13 +538,13 @@ class RCNN:
 if __name__ == '__main__':
     # rpe = RegionProposalExtraction('../../tasks/detection/data/images', '../../tasks/detection/data/annotations')
     # rpe.get_roi()
-    # train_dataloader, val_dataloader = TrainDataLoader(batch_size=16, random_seed=42, valid_size=0.2,
-    #                                                    shuffle=True).load_data()
+    train_dataloader, val_dataloader = RCNNTrainDataLoader(batch_size=16, random_seed=42, valid_size=0.2,
+                                                           shuffle=True).load_data()
     model = RCNN(pretrained=True)
-    # criterion = torch.nn.CrossEntropyLoss()
-    # optimizer = torch.optim.Adam(model.classifier.parameters(),
-    #                              lr=model.config.LEARNING_RATE,
-    #                              weight_decay=model.config.WEIGHT_DECAY)
-    # model.train(train_dataloader, val_dataloader, criterion, optimizer, model.config.NUM_EPOCHS)
-    img_path = '../../tasks/detection/fruits/data/images/fruit180.png'
-    model.detect(img_path)
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.classifier.parameters(),
+                                 lr=model.config.LEARNING_RATE,
+                                 weight_decay=model.config.WEIGHT_DECAY)
+    model.train(train_dataloader, val_dataloader, criterion, optimizer, model.config.NUM_EPOCHS)
+    # img_path = '../../tasks/detection/fruits/data/images/fruit180.png'
+    # model.detect(img_path)

@@ -27,7 +27,7 @@ class PascalVOCTraining:
         self.model.train()
         total_loss = 0
 
-        for i, (images, boxes, labels) in tqdm(enumerate(self.train_dataloader), total=len(self.train_dataloader)):
+        for i, (images, boxes, labels, _) in tqdm(enumerate(self.train_dataloader), total=len(self.train_dataloader)):
             images = images.to(self.device)
             boxes = [b.to(self.device) for b in boxes]
             labels = [l.to(self.device) for l in labels]
@@ -42,35 +42,7 @@ class PascalVOCTraining:
             total_loss += loss.item()
 
         total_loss = total_loss / (len(self.train_dataloader) * self.batch_size)
-
-        with torch.no_grad():
-            self.model.eval()
-
-            detect_boxes = []
-            detect_labels = []
-            detect_scores = []
-            target_boxes = []
-            target_labels = []
-            for i, (images, boxes, labels) in enumerate(self.val_dataloader):
-                images = images.to(self.device)
-                boxes = [b.to(self.device) for b in boxes]
-                labels = [l.to(self.device) for l in labels]
-
-                locs_pred, cls_pred = self.model(images)
-                detect_boxes_batch, detect_labels_batch, detect_score_batch = self.model.detect(locs_pred, cls_pred,
-                                                                                                min_score=0.01,
-                                                                                                max_overlap=0.45,
-                                                                                                top_k=200)
-                detect_boxes.extend(detect_boxes_batch)
-                detect_labels.extend(detect_labels_batch)
-                detect_scores.extend(detect_score_batch)
-                target_boxes.extend(boxes)
-                target_labels.extend(labels)
-            APs, mAP = calculate_mAP(detect_boxes, detect_labels,
-                                     detect_scores, target_boxes, target_labels,
-                                     self.label_map, self.rev_label_map)
-
-        return total_loss, APs, mAP
+        return total_loss
 
     def train(self, n_epochs, lr, wd, postfix):
         history = defaultdict(list)
@@ -82,14 +54,12 @@ class PascalVOCTraining:
         early_stopping = EarlyStopping(patience=10)
 
         for epoch in range(n_epochs):
-            total_loss, APs, mAP = self.one_epoch_train(optimizer, ssd_loss)
+            total_loss = self.one_epoch_train(optimizer, ssd_loss)
             scheduler.step(total_loss)
 
             history['loss'].append(total_loss)
-            history['APs'].append(APs)
-            history['mAP'].append(mAP)
 
-            print(f'[INFO]: Epoch {epoch + 1}/{n_epochs}, Loss: {total_loss:.4f}, APs: {APs}, mAP: {mAP}')
+            print(f'[INFO]: Epoch {epoch + 1}/{n_epochs}, Loss: {total_loss:.4f}')
             early_stopping(total_loss, self.model)
             if early_stopping.early_stop:
                 print('Early stopping')
@@ -97,3 +67,36 @@ class PascalVOCTraining:
 
         pd.DataFrame(history).to_csv(f'./tasks/detection/fruits/logs/ssd_history_{postfix}.csv', index=False)
         torch.save(self.model.state_dict(), f'./ssd_model_{postfix}.pth')
+
+    def eval(self):
+        with torch.no_grad():
+            self.model.eval()
+
+            detect_boxes = []
+            detect_labels = []
+            detect_scores = []
+            target_boxes = []
+            target_labels = []
+            target_difficulties = []
+            for i, (images, boxes, labels, difficulties) in enumerate(self.val_dataloader):
+                images = images.to(self.device)
+                boxes = [b.to(self.device) for b in boxes]
+                labels = [l.to(self.device) for l in labels]
+                difficulties = [d.to(self.device) for d in difficulties]
+
+                locs_pred, cls_pred = self.model(images)
+                detect_boxes_batch, detect_labels_batch, detect_score_batch = self.model.detect(locs_pred, cls_pred,
+                                                                                                min_score=0.01,
+                                                                                                max_overlap=0.45,
+                                                                                                top_k=200)
+                detect_boxes.extend(detect_boxes_batch)
+                detect_labels.extend(detect_labels_batch)
+                detect_scores.extend(detect_score_batch)
+                target_boxes.extend(boxes)
+                target_labels.extend(labels)
+                target_difficulties.extend(difficulties)
+            APs, mAP = calculate_mAP(detect_boxes, detect_labels, detect_scores,
+                                     target_boxes, target_labels, target_difficulties,
+                                     self.label_map, self.rev_label_map)
+
+        return APs, mAP

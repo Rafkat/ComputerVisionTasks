@@ -25,14 +25,16 @@ def combine(batch):
     images = []
     boxes = []
     labels = []
+    difficulties = []
 
     for b in batch:
         images.append(b[0])
         boxes.append(b[1])
         labels.append(b[2])
+        difficulties.append(b[3])
 
     images = torch.stack(images, dim=0)
-    return images, boxes, labels
+    return images, boxes, labels, difficulties
 
 
 class TrainDataset(Dataset):
@@ -58,9 +60,11 @@ class TrainDataset(Dataset):
         soup = BeautifulSoup(annot, 'html.parser')
         classes = []
         bboxes = []
+        difficulties = []
         img_width, img_height = int(soup.find('width').string), int(soup.find('height').string)
         for obj in soup.find_all('object'):
             classes.append(classes_map[obj.find('name').string])
+            difficulties.append(int(obj.find('difficult').string))
 
             x_min = max(0, int(obj.find('xmin').string))
             y_min = max(0, int(obj.find('ymin').string))
@@ -69,17 +73,17 @@ class TrainDataset(Dataset):
 
             bbox = [x_min, y_min, x_max, y_max]
             if self.transform:
-                x_min /= image.width
-                x_max /= image.width
-                y_min /= image.height
-                y_max /= image.height
+                x_min /= img_width
+                x_max /= img_width
+                y_min /= img_height
+                y_max /= img_height
                 bbox = [x_min, y_min, x_max, y_max]
             bboxes.append(bbox)
 
         if self.transform:
             image = self.transform(image)
 
-        return image, torch.FloatTensor(bboxes), torch.LongTensor(classes)
+        return image, torch.FloatTensor(bboxes), torch.LongTensor(classes), torch.ByteTensor(difficulties)
 
 
 class SSDTrainDataLoader:
@@ -345,9 +349,9 @@ class SingleShotMultiBoxDetector(nn.Module):
 
                     suppress[box_id] = 0
 
-                image_boxes.append(class_decoded_locs[1 - suppress])
-                image_labels.append(torch.LongTensor((1 - suppress).sum().item() * [c]).to(self.device))
-                image_scores.append(class_scores[1 - suppress])
+                image_boxes.append(class_decoded_locs[~suppress.bool()])
+                image_labels.append(torch.LongTensor((~suppress.bool()).sum().item() * [c]).to(self.device))
+                image_scores.append(class_scores[~suppress.bool()])
 
             if len(image_boxes) == 0:
                 image_boxes.append(torch.FloatTensor([[0., 0., 1., 1.]]).to(self.device))

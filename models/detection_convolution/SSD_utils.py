@@ -35,10 +35,10 @@ def cxcy_to_xy(bboxes):
 
 
 def encode_bboxes(bboxes, default_boxes):
-    return torch.cat([(bboxes[:, :2] - default_boxes[:, :2]) / (default_boxes[:, 2:] / 10),
-                      torch.log(bboxes[:, 2:] / default_boxes[:, 2:]) * 5], 1)
+    return torch.cat([(bboxes[:, :2] - default_boxes[:, :2]) / (default_boxes[:, 2:]),
+                      torch.log(bboxes[:, 2:] / default_boxes[:, 2:])], 1)
 
 
 def decode_bboxes(offsets, default_boxes):
-    return torch.cat([offsets[:, :2] * default_boxes[:, 2:] / 10 + default_boxes[:, :2],
-                      torch.exp(offsets[:, 2:] / 5) * default_boxes[:, 2:]], 1)
+    return torch.cat([offsets[:, :2] * default_boxes[:, 2:] + default_boxes[:, :2],
+                      torch.exp(offsets[:, 2:]) * default_boxes[:, 2:]], 1)
