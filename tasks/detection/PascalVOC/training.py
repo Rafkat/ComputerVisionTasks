@@ -49,7 +49,7 @@ class PascalVOCTraining:
         ssd_loss = MultiBoxLoss(self.model.default_boxes).to(self.device)
         self.model.to(self.device)
 
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
         scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.1)
         early_stopping = EarlyStopping(patience=10)
 
