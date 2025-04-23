@@ -26,23 +26,30 @@ class PascalVOCTraining:
     def one_epoch_train(self, optimizer, loss_func):
         self.model.train()
         total_loss = 0
+        total_loc_loss = 0
+        total_cls_loss = 0
 
         for i, (images, boxes, labels, _) in tqdm(enumerate(self.train_dataloader), total=len(self.train_dataloader)):
             images = images.to(self.device)
-            boxes = [b.to(self.device) for b in boxes]
-            labels = [l.to(self.device) for l in labels]
+            boxes = [box.to(self.device) for box in boxes]
+            labels = [label.to(self.device) for label in labels]
 
             locs_pred, cls_pred = self.model(images)
 
-            loss = loss_func(locs_pred, cls_pred, boxes, labels)
+            loc_loss, confidence_loss = loss_func(locs_pred, cls_pred, boxes, labels)
+            loss = loc_loss + confidence_loss
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
+            total_loc_loss += loc_loss.item()
+            total_cls_loss += confidence_loss.item()
 
-        total_loss = total_loss / (len(self.train_dataloader) * self.batch_size)
-        return total_loss
+        total_loss = total_loss / len(self.train_dataloader)
+        total_loc_loss = total_loc_loss / len(self.train_dataloader)
+        total_cls_loss = total_cls_loss / len(self.train_dataloader)
+        return total_loss, total_loc_loss, total_cls_loss
 
     def train(self, n_epochs, lr, wd, postfix):
         history = defaultdict(list)
@@ -50,20 +57,23 @@ class PascalVOCTraining:
         self.model.to(self.device)
 
         optimizer = torch.optim.SGD(self.model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
-        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.1)
-        early_stopping = EarlyStopping(patience=10)
+        # optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        # scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.1)
+        # early_stopping = EarlyStopping(patience=10)
 
         for epoch in range(n_epochs):
-            total_loss = self.one_epoch_train(optimizer, ssd_loss)
-            scheduler.step(total_loss)
+            total_loss, total_loc_loss, total_cls_loss = self.one_epoch_train(optimizer, ssd_loss)
+            # scheduler.step(total_loss)
 
             history['loss'].append(total_loss)
 
-            print(f'[INFO]: Epoch {epoch + 1}/{n_epochs}, Loss: {total_loss:.4f}')
-            early_stopping(total_loss, self.model)
-            if early_stopping.early_stop:
-                print('Early stopping')
-                break
+            print(
+                f'[INFO]: Epoch {epoch + 1}/{n_epochs}, Total Loss: {total_loss:.4f}, Loc Loss: {total_loc_loss:.4f}, '
+                f'Conf Loss: {total_cls_loss:.4f}')
+            # early_stopping(total_loss, self.model)
+            # if early_stopping.early_stop:
+            #     print('Early stopping')
+            #     break
 
         pd.DataFrame(history).to_csv(f'./tasks/detection/fruits/logs/ssd_history_{postfix}.csv', index=False)
         torch.save(self.model.state_dict(), f'./ssd_model_{postfix}.pth')
