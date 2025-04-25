@@ -62,12 +62,6 @@ class TrainDataset(Dataset):
             y_max = min(img_height, int(obj.find('ymax').string))
 
             bbox = [x_min, y_min, x_max, y_max]
-            if self.transform:
-                x_min /= img_width
-                x_max /= img_width
-                y_min /= img_height
-                y_max /= img_height
-                bbox = [x_min, y_min, x_max, y_max]
             bboxes.append(bbox)
 
         bboxes = torch.FloatTensor(bboxes)
@@ -83,6 +77,7 @@ class TrainDataset(Dataset):
             image, bboxes, classes, difficulties = random_crop(image, bboxes, classes, difficulties)
 
             image, bboxes = random_flip(image, bboxes)
+            bboxes /= torch.FloatTensor([image.width, image.height, image.width, image.height])
 
             image = self.transform(image)
 

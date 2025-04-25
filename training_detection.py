@@ -43,7 +43,7 @@ def ssd_training(n_epochs, device, lr, ds='fruits'):
         torch.save(ssd_train.model.state_dict(), './ssd_model.pth')
     elif ds == 'voc':
         ssd_model = SingleShotMultiBoxDetector(nb_classes=21)
-        training = PascalVOCTraining(ssd_model)
+        training = PascalVOCTraining(ssd_model, batch_size=8)
         training.train(lr=lr, postfix='_sgd_pure')
 
 

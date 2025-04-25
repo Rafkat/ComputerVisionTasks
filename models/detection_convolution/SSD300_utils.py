@@ -134,7 +134,7 @@ def random_crop(image, bboxes, classes, difficulties):
             center_bb = (bboxes[:, :2] + bboxes[:, 2:]) / 2.0
 
             center_in_crop = ((center_bb[:, 0] > left) * (center_bb[:, 0] < right)
-                              * (center_bb[:, 1]) * (center_bb[:, 1] < bottom))
+                              * (center_bb[:, 1] > top) * (center_bb[:, 1] < bottom))
 
             if not center_in_crop.any():
                 continue
