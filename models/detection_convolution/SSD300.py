@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+import torchvision.transforms.functional as TF
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import Image
@@ -42,7 +43,6 @@ class TrainDataset(Dataset):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
-        random_value = random.random()
         image_path = self.image_paths[idx]
         annot_path = self.annot_paths[idx]
         image = Image.open(os.path.join(self.image_dir, image_path)).convert('RGB')
@@ -71,13 +71,13 @@ class TrainDataset(Dataset):
         if self.transform:
             image = distort(image)
             image = lighting_noise(image)
-            if random_value < 0.5:
+            if random.random() < 0.5:
                 image, bboxes = expand_filler(image, bboxes, self.mean)
 
             image, bboxes, classes, difficulties = random_crop(image, bboxes, classes, difficulties)
 
             image, bboxes = random_flip(image, bboxes)
-            bboxes /= torch.FloatTensor([image.width, image.height, image.width, image.height])
+            bboxes = bboxes / torch.FloatTensor([image.width, image.height, image.width, image.height]).unsqueeze(0)
 
             image = self.transform(image)
 
@@ -199,7 +199,7 @@ class VGG16Encoder(nn.Module):
 
 
 class Neck(nn.Module):
-    def __init__(self):
+    def __init__(self, pretrained=True):
         super(Neck, self).__init__()
         self.conv6 = nn.Conv2d(512, 1024, kernel_size=3, padding=1)
         self.conv7 = nn.Conv2d(1024, 1024, kernel_size=1)
@@ -231,6 +231,9 @@ class Neck(nn.Module):
             nn.ReLU()
         )
 
+        if pretrained:
+            self.load_pretrained()
+
     def forward(self, x, encoder_out):
         out_features = [encoder_out]
         x = F.relu(self.conv6(x))
@@ -245,6 +248,30 @@ class Neck(nn.Module):
         x = self.conv11(x)
         out_features.append(x)
         return out_features
+
+    def load_pretrained(self):
+        state_dict = self.state_dict()
+
+        pretrained_state_dict = torchvision.models.vgg16(pretrained=True).state_dict()
+
+        fc6_weight = pretrained_state_dict['classifier.0.weight'].view(4096, 512, 7, 7)
+        fc6_bias = pretrained_state_dict['classifier.0.bias']
+        state_dict['conv6.weight'] = self.decimate(fc6_weight, m=[4, None, 3, 3])
+        state_dict['conv6.bias'] = self.decimate(fc6_bias, m=[4])
+
+        fc7_weight = pretrained_state_dict['classifier.3.weight'].view(4096, 4096, 1, 1)
+        fc7_bias = pretrained_state_dict['classifier.3.bias']
+        state_dict['conv7.weight'] = self.decimate(fc7_weight, m=[4, 4, None, None])
+        state_dict['conv7.bias'] = self.decimate(fc7_bias, m=[4])
+
+        self.load_state_dict(state_dict)
+
+    @staticmethod
+    def decimate(tensor, m):
+        for d in range(tensor.dim()):
+            if m[d] is not None:
+                tensor = tensor.index_select(dim=d, index=torch.arange(start=0, end=tensor.size(d), step=m[d]).long())
+        return tensor
 
 
 class Head(nn.Module):

@@ -91,7 +91,7 @@ def expand_filler(image, bboxes, filler):
     new_image[:, top:bottom, left:right] = image
 
     bboxes = bboxes + torch.FloatTensor([left, top, left, top]).unsqueeze(0)
-    return image, bboxes
+    return new_image, bboxes
 
 
 def random_crop(image, bboxes, classes, difficulties):
