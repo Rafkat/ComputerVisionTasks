@@ -22,6 +22,7 @@ class PascalVOCTraining:
                           'aeroplane': 8, 'bicycle': 9, 'boat': 10, 'bus': 11, 'car': 12, 'motorbike': 13, 'train': 14,
                           'bottle': 15, 'chair': 16, 'diningtable': 17, 'pottedplant': 18, 'sofa': 19, 'tvmonitor': 20}
         self.rev_label_map = {v: k for k, v in self.label_map.items()}
+        self.iterations = 145000
 
     def one_epoch_train(self, optimizer, loss_func):
         self.model.train()
@@ -51,29 +52,30 @@ class PascalVOCTraining:
         total_cls_loss = total_cls_loss / len(self.train_dataloader)
         return total_loss, total_loc_loss, total_cls_loss
 
-    def train(self, n_epochs, lr, wd, postfix):
+    def train(self, lr, postfix):
+        n_epochs = self.iterations // len(self.train_dataloader)
         history = defaultdict(list)
         ssd_loss = MultiBoxLoss(self.model.default_boxes).to(self.device)
         self.model.to(self.device)
 
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
         # optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
-        # scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.1)
-        # early_stopping = EarlyStopping(patience=10)
+        scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.1)
+        early_stopping = EarlyStopping(patience=10)
 
         for epoch in range(n_epochs):
             total_loss, total_loc_loss, total_cls_loss = self.one_epoch_train(optimizer, ssd_loss)
-            # scheduler.step(total_loss)
+            scheduler.step(total_loss)
 
             history['loss'].append(total_loss)
 
             print(
                 f'[INFO]: Epoch {epoch + 1}/{n_epochs}, Total Loss: {total_loss:.4f}, Loc Loss: {total_loc_loss:.4f}, '
                 f'Conf Loss: {total_cls_loss:.4f}')
-            # early_stopping(total_loss, self.model)
-            # if early_stopping.early_stop:
-            #     print('Early stopping')
-            #     break
+            early_stopping(total_loss, self.model)
+            if early_stopping.early_stop:
+                print('Early stopping')
+                break
 
         pd.DataFrame(history).to_csv(f'./tasks/detection/PascalVOC/logs/ssd_history_{postfix}.csv', index=False)
         torch.save(self.model.state_dict(), f'./ssd_model_{postfix}.pth')

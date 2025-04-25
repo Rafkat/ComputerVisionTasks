@@ -44,7 +44,7 @@ def ssd_training(n_epochs, device, lr, ds='fruits'):
     elif ds == 'voc':
         ssd_model = SingleShotMultiBoxDetector(nb_classes=21)
         training = PascalVOCTraining(ssd_model)
-        training.train(n_epochs, lr=lr, wd=0, postfix='v1')
+        training.train(lr=lr, postfix='_sgd_pure')
 
 
 def rcnn_training(n_epochs, device, lr):
