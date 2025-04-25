@@ -5,7 +5,7 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
-from models.detection_convolution.SSD import SSDTrainDataLoader
+from models.detection_convolution.SSD300 import SSDTrainDataLoader
 from tasks.utils import EarlyStopping, calculate_mAP, MultiBoxLoss
 
 
@@ -75,7 +75,7 @@ class PascalVOCTraining:
             #     print('Early stopping')
             #     break
 
-        pd.DataFrame(history).to_csv(f'./tasks/detection/fruits/logs/ssd_history_{postfix}.csv', index=False)
+        pd.DataFrame(history).to_csv(f'./tasks/detection/PascalVOC/logs/ssd_history_{postfix}.csv', index=False)
         torch.save(self.model.state_dict(), f'./ssd_model_{postfix}.pth')
 
     def eval(self):

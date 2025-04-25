@@ -4,7 +4,7 @@ import pandas as pd
 import torch
 from torch import nn
 
-from models.detection_convolution.SSD import SingleShotMultiBoxDetector
+from models.detection_convolution.SSD300 import SingleShotMultiBoxDetector
 from tasks.detection.PascalVOC.training import PascalVOCTraining
 from tasks.detection.fruits.training import SSDTraining, RCNNTraining
 from torch.optim.lr_scheduler import ReduceLROnPlateau

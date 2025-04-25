@@ -1,5 +1,6 @@
 import math
 import os
+import random
 
 import numpy as np
 import torch
@@ -10,8 +11,10 @@ from torchvision import transforms
 from PIL import Image
 from bs4 import BeautifulSoup
 from torch.utils.data.sampler import SubsetRandomSampler
+import torchvision
 
-from models.detection_convolution.SSD_utils import cxcy_to_xy, decode_bboxes, find_IoU
+from models.detection_convolution.SSD300_utils import cxcy_to_xy, decode_bboxes, find_IoU, distort, lighting_noise, \
+    expand_filler, random_crop, random_flip
 
 # originated from https://arxiv.org/pdf/1512.02325
 
@@ -19,22 +22,6 @@ from models.detection_convolution.SSD_utils import cxcy_to_xy, decode_bboxes, fi
 classes_map = {'background': 0, 'person': 1, 'bird': 2, 'cat': 3, 'cow': 4, 'dog': 5, 'horse': 6, 'sheep': 7,
                'aeroplane': 8, 'bicycle': 9, 'boat': 10, 'bus': 11, 'car': 12, 'motorbike': 13, 'train': 14,
                'bottle': 15, 'chair': 16, 'diningtable': 17, 'pottedplant': 18, 'sofa': 19, 'tvmonitor': 20}
-
-
-def combine(batch):
-    images = []
-    boxes = []
-    labels = []
-    difficulties = []
-
-    for b in batch:
-        images.append(b[0])
-        boxes.append(b[1])
-        labels.append(b[2])
-        difficulties.append(b[3])
-
-    images = torch.stack(images, dim=0)
-    return images, boxes, labels, difficulties
 
 
 class TrainDataset(Dataset):
@@ -49,10 +36,13 @@ class TrainDataset(Dataset):
         self.image_paths = list(sorted(os.listdir(image_dir)))
         self.annot_paths = list(sorted(os.listdir(annot_dir)))
 
+        self.mean = [0.485, 0.456, 0.406]
+
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
+        random_value = random.random()
         image_path = self.image_paths[idx]
         annot_path = self.annot_paths[idx]
         image = Image.open(os.path.join(self.image_dir, image_path)).convert('RGB')
@@ -80,10 +70,23 @@ class TrainDataset(Dataset):
                 bbox = [x_min, y_min, x_max, y_max]
             bboxes.append(bbox)
 
+        bboxes = torch.FloatTensor(bboxes)
+        classes = torch.LongTensor(classes)
+        difficulties = torch.ByteTensor(difficulties)
+
         if self.transform:
+            image = distort(image)
+            image = lighting_noise(image)
+            if random_value < 0.5:
+                image, bboxes = expand_filler(image, bboxes, self.mean)
+
+            image, bboxes, classes, difficulties = random_crop(image, bboxes, classes, difficulties)
+
+            image, bboxes = random_flip(image, bboxes)
+
             image = self.transform(image)
 
-        return image, torch.FloatTensor(bboxes), torch.LongTensor(classes), torch.ByteTensor(difficulties)
+        return image, bboxes, classes, difficulties
 
 
 class SSDTrainDataLoader:
@@ -92,6 +95,22 @@ class SSDTrainDataLoader:
         self.random_seed = random_seed
         self.valid_size = valid_size
         self.shuffle = shuffle
+
+    @staticmethod
+    def combine(batch):
+        images = []
+        boxes = []
+        labels = []
+        difficulties = []
+
+        for b in batch:
+            images.append(b[0])
+            boxes.append(b[1])
+            labels.append(b[2])
+            difficulties.append(b[3])
+
+        images = torch.stack(images, dim=0)
+        return images, boxes, labels, difficulties
 
     def load_data(self, image_dir, annot_dir):
         mean = [0.485, 0.456, 0.406]
@@ -125,9 +144,9 @@ class SSDTrainDataLoader:
         valid_sample = SubsetRandomSampler(valid_idx)
 
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, sampler=train_sample,
-                                  collate_fn=combine, num_workers=4, pin_memory=True)
+                                  collate_fn=self.combine, num_workers=4, pin_memory=True)
         valid_loader = DataLoader(valid_dataset, batch_size=self.batch_size, sampler=valid_sample,
-                                  collate_fn=combine, num_workers=4, pin_memory=True)
+                                  collate_fn=self.combine, num_workers=4, pin_memory=True)
         return train_loader, valid_loader
 
 
@@ -148,9 +167,9 @@ class ConvBlock(nn.Module):
 
 
 class VGG16Encoder(nn.Module):
-    def __init__(self):
+    def __init__(self, pretrained=True):
         super(VGG16Encoder, self).__init__()
-        self.conv1 = ConvBlock([3, 64])
+        self.conv1 = ConvBlock([3, 64, 64])
         self.conv2 = ConvBlock([64, 128, 128])
         self.conv3 = ConvBlock([128, 256, 256, 256])
         self.conv4 = ConvBlock([256, 512, 512, 512])
@@ -158,6 +177,9 @@ class VGG16Encoder(nn.Module):
         self.maxpool1 = nn.MaxPool2d(2, 2)
         self.maxpool2 = nn.MaxPool2d(2, 2, ceil_mode=True)
         self.maxpool3 = nn.MaxPool2d(3, 1, 1)
+
+        if pretrained:
+            self.load_pretrained()
 
     def forward(self, x):
         x = self.maxpool1(self.conv1(x))
@@ -167,6 +189,18 @@ class VGG16Encoder(nn.Module):
         x = self.maxpool1(out)
         x = self.maxpool3(self.conv5(x))
         return x, out
+
+    def load_pretrained(self):
+        state_dict = self.state_dict()
+        param_names = list(state_dict.keys())
+
+        pretrained_state_dict = torchvision.models.vgg16(pretrained=True).state_dict()
+        pretrained_param_names = list(pretrained_state_dict.keys())
+
+        for i, parameters in enumerate(param_names):
+            state_dict[parameters] = pretrained_state_dict[pretrained_param_names[i]]
+
+        self.load_state_dict(state_dict)
 
 
 class Neck(nn.Module):

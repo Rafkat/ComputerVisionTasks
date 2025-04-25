@@ -2,7 +2,7 @@ import random
 
 import torch
 
-from models.detection_convolution.SSD import SSDTrainDataLoader, SingleShotMultiBoxDetector
+from models.detection_convolution.SSD300 import SSDTrainDataLoader, SingleShotMultiBoxDetector
 from PIL import Image, ImageDraw, ImageFont
 from torchvision import transforms
 import matplotlib.pyplot as plt

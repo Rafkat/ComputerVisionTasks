@@ -1,5 +1,24 @@
 import torch
 from torchvision import ops
+from torch.nn import functional as F
+
+
+def calc_cls_loss(conf_scores_pos, conf_scores_neg, batch_size):
+    target_pos = torch.ones_like(conf_scores_pos)
+    target_neg = torch.zeros_like(conf_scores_neg)
+
+    target = torch.cat((target_pos, target_neg))
+    inputs = torch.cat((conf_scores_pos, conf_scores_neg))
+
+    loss = F.binary_cross_entropy_with_logits(inputs, target, reduction='sum') * 1. / batch_size
+
+    return loss
+
+
+def calc_bbox_reg_loss(gt_offsets, reg_offsets_pos, batch_size):
+    assert gt_offsets.size() == reg_offsets_pos.size()
+    loss = F.smooth_l1_loss(reg_offsets_pos, gt_offsets, reduction='sum') * 1. / batch_size
+    return loss
 
 
 def generate_proposals(anchors, offsets):

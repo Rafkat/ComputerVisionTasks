@@ -1,14 +1,156 @@
+import os
+
+import numpy as np
 import torch
 import torchvision
+from PIL import Image
+from bs4 import BeautifulSoup
 from torch import nn
 from torch.nn import functional as F
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import ops
+from torchvision import transforms
 
 from models.detection_convolution.FasterRCNN_utils import generate_proposals, gen_anc_centers, gen_anc_base, \
-    project_bboxes, get_req_anchors
+    project_bboxes, get_req_anchors, calc_cls_loss, calc_bbox_reg_loss
 
 
 # originated from https://arxiv.org/pdf/1506.01497
+
+
+class TrainDataset(Dataset):
+    def __init__(self, classes_map, image_dir='./tasks/detection/fruits/data/images',
+                 annot_dir='./tasks/detection/fruits/data/annotations', transform=None, image_size=(480, 640)):
+        self.transform = transform
+        self.img_height, self.img_width = image_size
+
+        self.image_dir = image_dir
+        self.annot_dir = annot_dir
+
+        self.image_paths = list(sorted(os.listdir(image_dir)))
+        self.annot_paths = list(sorted(os.listdir(annot_dir)))
+        self.classes_map = classes_map
+
+        self.gt_bboxes_all, self.gt_classes_all, self.gt_difficulties_all = self.get_data()
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        image_path = self.image_paths[idx]
+        image = Image.open(os.path.join(self.image_dir, image_path)).convert('RGB')
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, self.gt_bboxes_all[idx], self.gt_classes_all[idx], self.gt_difficulties_all[idx]
+
+    def get_data(self):
+        gt_boxes_all = []
+        gt_classes_all = []
+        gt_difficulties_all = []
+
+        for idx in range(len(self.annot_paths)):
+            annot_path = self.annot_paths[idx]
+            annot = open(os.path.join(self.annot_dir, annot_path)).read()
+            soup = BeautifulSoup(annot, 'html.parser')
+            classes = []
+            bboxes = []
+            difficulties = []
+            img_width, img_height = int(soup.find('width').string), int(soup.find('height').string)
+
+            for obj in soup.find_all('object'):
+                classes.append(self.classes_map[obj.find('name').string])
+                difficulties.append(int(obj.find('difficult').string))
+
+                x_min = max(0, int(obj.find('xmin').string))
+                y_min = max(0, int(obj.find('ymin').string))
+                x_max = min(img_width, int(obj.find('xmax').string))
+                y_max = min(img_height, int(obj.find('ymax').string))
+
+                bbox = [x_min, y_min, x_max, y_max]
+                if self.transform:
+                    x_min = x_min * self.img_width / img_width
+                    x_max = x_max * self.img_width / img_width
+                    y_min = y_min * self.img_height / img_height
+                    y_max = y_max * self.img_height / img_height
+                    bbox = [x_min, y_min, x_max, y_max]
+                bboxes.append(bbox)
+
+            gt_boxes_all.append(torch.Tensor(bboxes))
+            gt_classes_all.append(torch.Tensor(classes))
+            gt_difficulties_all.append(torch.Tensor(difficulties))
+
+        gt_bboxes_pad = pad_sequence(gt_boxes_all, batch_first=True, padding_value=-1)
+        gt_classes_pad = pad_sequence(gt_classes_all, batch_first=True, padding_value=-1)
+        gt_difficulties_pad = pad_sequence(gt_difficulties_all, batch_first=True, padding_value=-1)
+        return gt_bboxes_pad, gt_classes_pad, gt_difficulties_pad
+
+
+class FasterRCNNTrainDataLoader:
+    def __init__(self, classes_map, batch_size=128, random_seed=42, valid_size=0.2, shuffle=True):
+        self.batch_size = batch_size
+        self.random_seed = random_seed
+        self.valid_size = valid_size
+        self.shuffle = shuffle
+        self.classes_map = classes_map
+
+    @staticmethod
+    def combine(batch):
+        images = []
+        boxes = []
+        labels = []
+        difficulties = []
+
+        for b in batch:
+            images.append(b[0])
+            boxes.append(b[1])
+            labels.append(b[2])
+            difficulties.append(b[3])
+
+        images = torch.stack(images, dim=0)
+        return images, boxes, labels, difficulties
+
+    def load_data(self, image_dir, annot_dir):
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+
+        train_transform = transforms.Compose([
+            transforms.Resize((480, 640)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)
+        ])
+
+        valid_transform = transforms.Compose([
+            transforms.Resize((480, 640)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)
+        ])
+
+        train_dataset = TrainDataset(image_dir=image_dir, annot_dir=annot_dir,
+                                     transform=train_transform, classes_map=self.classes_map)
+        valid_dataset = TrainDataset(image_dir=image_dir, annot_dir=annot_dir,
+                                     transform=valid_transform, classes_map=self.classes_map)
+
+        num_train = len(train_dataset)
+        indices = list(range(num_train))
+        split = int(np.floor(self.valid_size * num_train))
+
+        if self.shuffle:
+            np.random.seed(self.random_seed)
+            np.random.seed(indices)
+
+        train_idx, valid_idx = indices[split:], indices[:split]
+        train_sample = SubsetRandomSampler(train_idx)
+        valid_sample = SubsetRandomSampler(valid_idx)
+
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, sampler=train_sample,
+                                  num_workers=4, pin_memory=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=self.batch_size, sampler=valid_sample,
+                                  num_workers=4, pin_memory=True)
+        return train_loader, valid_loader
 
 
 class FeatureExtractor(nn.Module):
@@ -19,6 +161,8 @@ class FeatureExtractor(nn.Module):
         self.backbone = nn.Sequential(*req_layers)
         for param in self.backbone.named_parameters():
             param[1].requires_grad = True
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.backbone.to(self.device)
 
     def forward(self, img_data):
         return self.backbone(img_data)
@@ -28,10 +172,11 @@ class ProposalModule(nn.Module):
     def __init__(self, in_features, hidden_dim=512, n_anchors=9, p_dropout=0.3):
         super().__init__()
         self.n_anchors = n_anchors
-        self.conv1 = nn.Conv2d(in_features, hidden_dim, kernel_size=3, padding=1)
-        self.dropout = nn.Dropout(p_dropout)
-        self.conf_head = nn.Conv2d(hidden_dim, n_anchors, kernel_size=1)
-        self.reg_head = nn.Conv2d(hidden_dim, n_anchors * 4, kernel_size=1)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.conv1 = nn.Conv2d(in_features, hidden_dim, kernel_size=3, padding=1).to(self.device)
+        self.dropout = nn.Dropout(p_dropout).to(self.device)
+        self.conf_head = nn.Conv2d(hidden_dim, n_anchors, kernel_size=1).to(self.device)
+        self.reg_head = nn.Conv2d(hidden_dim, n_anchors * 4, kernel_size=1).to(self.device)
 
     def forward(self, feature_map, pos_anc_ind=None, neg_anc_ind=None, pos_anc_coords=None):
         # determine mode
@@ -43,8 +188,8 @@ class ProposalModule(nn.Module):
         out = self.conv1(feature_map)
         out = F.relu(self.dropout(out))
 
-        reg_offsets_pred = self.reg_head(out)  # (B, A*4, hmap, wmap)
-        conf_scores_pred = self.conf_head(out)  # (B, A, hmap, wmap)
+        reg_offsets_pred = self.reg_head(out).cpu()  # (B, A*4, hmap, wmap)
+        conf_scores_pred = self.conf_head(out).cpu()  # (B, A, hmap, wmap)
 
         if mode == 'train':
             # get conf scores
@@ -198,13 +343,14 @@ class ClassificationModule(nn.Module):
 
 
 class FasterRCNN(nn.Module):
-    def __init__(self, img_size, out_size, out_channels, n_classes, roi_size):
+    def __init__(self, img_size=(480, 640), out_size=(15, 20), out_channels=2048, n_classes=5, roi_size=(2, 2)):
         super().__init__()
         self.rpn = RegionProposalNetwork(img_size, out_size, out_channels)
         self.classifier = ClassificationModule(out_channels, n_classes, roi_size)
 
     def forward(self, images, gt_bboxes, gt_classes):
-        total_rpn_loss, feature_map, proposals, positive_anc_ind_sep, GT_class_pos = self.rpn(images, gt_bboxes, gt_classes)
+        total_rpn_loss, feature_map, proposals, positive_anc_ind_sep, GT_class_pos = self.rpn(images, gt_bboxes,
+                                                                                              gt_classes)
 
         # get separate proposals for each sample
         pos_proposals_list = []
@@ -214,7 +360,7 @@ class FasterRCNN(nn.Module):
             proposals_sep = proposals[proposal_idxs].detach().clone()
             pos_proposals_list.append(proposals_sep)
 
-        cls_loss = self.classifier(feature_map, pos_proposals_list, GT_class_pos)
+        cls_loss = self.classifier(feature_map.cpu(), pos_proposals_list, GT_class_pos)
         total_loss = cls_loss + total_rpn_loss
 
         return total_loss
@@ -238,23 +384,3 @@ class FasterRCNN(nn.Module):
             c += n_proposals
 
         return proposals_final, conf_scores_final, classes_final
-
-
-# ------------------- Loss Utils ----------------------
-
-def calc_cls_loss(conf_scores_pos, conf_scores_neg, batch_size):
-    target_pos = torch.ones_like(conf_scores_pos)
-    target_neg = torch.zeros_like(conf_scores_neg)
-
-    target = torch.cat((target_pos, target_neg))
-    inputs = torch.cat((conf_scores_pos, conf_scores_neg))
-
-    loss = F.binary_cross_entropy_with_logits(inputs, target, reduction='sum') * 1. / batch_size
-
-    return loss
-
-
-def calc_bbox_reg_loss(gt_offsets, reg_offsets_pos, batch_size):
-    assert gt_offsets.size() == reg_offsets_pos.size()
-    loss = F.smooth_l1_loss(reg_offsets_pos, gt_offsets, reduction='sum') * 1. / batch_size
-    return loss

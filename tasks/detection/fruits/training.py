@@ -1,7 +1,8 @@
 import torch
 
+from models.detection_convolution.FasterRCNN import FasterRCNN, FasterRCNNTrainDataLoader
 from models.detection_convolution.RCNN import RCNN, RCNNTrainDataLoader
-from models.detection_convolution.SSD import SingleShotMultiBoxDetector, SSDTrainDataLoader
+from models.detection_convolution.SSD300 import SingleShotMultiBoxDetector, SSDTrainDataLoader
 from tqdm import tqdm
 
 from tasks.utils import calculate_mAP, MultiBoxLoss
@@ -83,8 +84,46 @@ class RCNNTraining:
         return history
 
 
+class FasterRCNNTraining:
+    def __init__(self, batch_size=16):
+        self.batch_size = batch_size
+        self.classes_map = {'background': 0, 'pineapple': 1, 'snake fruit': 2, 'dragon fruit': 3, 'banana': 4}
+        self.model = FasterRCNN(n_classes=len(self.classes_map))
+        self.train_dataloader, self.val_dataloader = FasterRCNNTrainDataLoader(classes_map=self.classes_map,
+                                                                               batch_size=self.batch_size).load_data(
+            '../../../tasks/detection/fruits/data/images',
+            '../../../tasks/detection/fruits/data/annotations'
+        )
+
+    def train(self, optimizer, epochs):
+        for epoch in range(epochs):
+            self.model.train()
+            total_loss = 0
+
+            for (images, boxes, labels, _) in tqdm(self.train_dataloader, total=len(self.train_dataloader)):
+                images = images.to(device)
+                # boxes = boxes.to(device)
+                # labels = labels.to(device)
+                loss = self.model(images, boxes, labels)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                total_loss += loss.item()
+
+            total_loss = total_loss / len(self.train_dataloader)
+            print(f'[INFO] Epoch {epoch + 1} / {epochs} | Loss: {total_loss:.4f}')
+        torch.save(self.model.state_dict(), './faster_rcnn.pth')
+
+
+
 if __name__ == '__main__':
-    ssd_train = SSDTraining()
-    ssd_loss = MultiBoxLoss(ssd_train.default_boxes)
-    ssd_train.model.to(device)
-    ssd_train.train(ssd_loss, optimizer=torch.optim.Adam(ssd_train.model.parameters(), lr=0.001))
+    # ssd_train = SSDTraining()
+    # ssd_loss = MultiBoxLoss(ssd_train.default_boxes)
+    # ssd_train.model.to(device)
+    # ssd_train.train(ssd_loss, optimizer=torch.optim.Adam(ssd_train.model.parameters(), lr=0.001))
+
+    frcnn_train = FasterRCNNTraining(batch_size=4)
+    optimizer = torch.optim.Adam(frcnn_train.model.parameters(), lr=0.001)
+    epochs = 1000
+    frcnn_train.train(optimizer, epochs)

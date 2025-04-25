@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from models.detection_convolution.SSD_utils import cxcy_to_xy, find_IoU, encode_bboxes, xy_to_cxcy
+from models.detection_convolution.SSD300_utils import cxcy_to_xy, find_IoU, encode_bboxes, xy_to_cxcy
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
