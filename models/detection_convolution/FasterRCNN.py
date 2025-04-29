@@ -390,12 +390,13 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = FasterRCNN()
     model.eval()
-    model.load_state_dict(torch.load("../../tasks/detection/fruits/faster_rcnn.pth"))
+    # model.load_state_dict(torch.load("../../tasks/detection/fruits/faster_rcnn.pth"))
+    model.load_state_dict(torch.load("../../faster_rcnn.pth"))
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
     from torchvision import transforms
 
-    image = Image.open('../../tasks/detection/fruits/data/images/fruit0.png').convert('RGB')
+    image = Image.open('../../tasks/detection/fruits/data/images/fruit110.png').convert('RGB')
     resize = transforms.Resize((480, 640))
     to_tensor = transforms.ToTensor()
     normalize = transforms.Normalize(mean=mean, std=std)
@@ -405,8 +406,7 @@ if __name__ == '__main__':
     img = resize(image)
     img = to_tensor(img)
     img = normalize(img)
-    proposals, conf_scores, classes = model.inference(img.unsqueeze(0).to(device), conf_thresh=0.7, nms_thresh=0.1)
-    print(proposals)
+    proposals, conf_scores, classes = model.inference(img.unsqueeze(0).to(device), conf_thresh=0.9, nms_thresh=0.05)
 
     proposals = proposals[0]
     conf_scores = conf_scores[0]
