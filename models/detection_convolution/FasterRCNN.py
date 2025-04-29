@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torch
 import torchvision
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from bs4 import BeautifulSoup
 from torch import nn
 from torch.nn import functional as F
@@ -368,7 +368,7 @@ class FasterRCNN(nn.Module):
     def inference(self, images, conf_thresh=0.5, nms_thresh=0.7):
         batch_size = images.size(dim=0)
         proposals_final, conf_scores_final, feature_map = self.rpn.inference(images, conf_thresh, nms_thresh)
-        cls_scores = self.classifier(feature_map, proposals_final)
+        cls_scores = self.classifier(feature_map.cpu(), proposals_final)
 
         # convert scores into probability
         cls_probs = F.softmax(cls_scores, dim=-1)
@@ -384,3 +384,51 @@ class FasterRCNN(nn.Module):
             c += n_proposals
 
         return proposals_final, conf_scores_final, classes_final
+
+
+if __name__ == '__main__':
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = FasterRCNN()
+    model.eval()
+    model.load_state_dict(torch.load("../../tasks/detection/fruits/faster_rcnn.pth"))
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+    from torchvision import transforms
+
+    image = Image.open('../../tasks/detection/fruits/data/images/fruit0.png').convert('RGB')
+    resize = transforms.Resize((480, 640))
+    to_tensor = transforms.ToTensor()
+    normalize = transforms.Normalize(mean=mean, std=std)
+    classes_map = {'background': 0, 'pineapple': 1, 'snake fruit': 2, 'dragon fruit': 3, 'banana': 4}
+    rev_class_map = {v: k for k, v in classes_map.items()}
+
+    img = resize(image)
+    img = to_tensor(img)
+    img = normalize(img)
+    proposals, conf_scores, classes = model.inference(img.unsqueeze(0).to(device), conf_thresh=0.7, nms_thresh=0.1)
+    print(proposals)
+
+    proposals = proposals[0]
+    conf_scores = conf_scores[0]
+    classes = classes[0]
+
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.truetype('../../tasks/detection/PascalVOC/arial.ttf', 15)
+    for i in range(len(proposals)):
+        box_location = proposals[i].tolist()
+        box_location[0] *= image.width / 20
+        box_location[1] *= image.height / 15
+        box_location[2] *= image.width / 20
+        box_location[3] *= image.height / 15
+        draw.rectangle(xy=box_location, outline='red', width=2)
+
+        text_size = font.getbbox(rev_class_map[classes[i].item()].upper())
+        text_location = [box_location[0] + 2., box_location[1] - text_size[1]]
+        textbox_location = [box_location[0], box_location[1] - text_size[1],
+                            box_location[0] + text_size[0] + 4., box_location[1]]
+        draw.rectangle(xy=textbox_location, outline='red', width=2)
+        draw.text(xy=text_location, text=rev_class_map[classes[i].item()].upper(), fill='white', font=font)
+
+    import matplotlib.pyplot as plt
+    plt.imshow(image)
+    plt.show()

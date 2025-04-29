@@ -6,7 +6,7 @@ from torch import nn
 
 from models.detection_convolution.SSD300 import SingleShotMultiBoxDetector
 from tasks.detection.PascalVOC.training import PascalVOCTraining
-from tasks.detection.fruits.training import SSDTraining, RCNNTraining
+from tasks.detection.fruits.training import SSDTraining, RCNNTraining, FasterRCNNTraining
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from tasks.utils import EarlyStopping, MultiBoxLoss
@@ -56,13 +56,20 @@ def rcnn_training(n_epochs, device, lr):
     pd.DataFrame(history).to_csv('./tasks/detection/fruits/logs/rcnn_history.csv', index=False)
 
 
+def faster_rcnn_training(n_epochs, device, lr):
+    frcnn_train = FasterRCNNTraining(batch_size=4)
+    optimizer = torch.optim.Adam(frcnn_train.model.parameters(), lr=lr)
+    frcnn_train.train(epochs=n_epochs, optimizer=optimizer)
+
+
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     n_epochs = 250
     lr = 1e-3
 
-    ssd_training(n_epochs, device, lr, ds='voc')
+    # ssd_training(n_epochs, device, lr, ds='voc')
     # rcnn_training(n_epochs, device, lr)
+    faster_rcnn_training(n_epochs, device, lr)
 
 
 if __name__ == '__main__':

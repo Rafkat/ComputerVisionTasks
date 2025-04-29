@@ -5,19 +5,19 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
-from models.detection_convolution.SSD300 import SSDTrainDataLoader
+from models.detection_convolution.SSD300 import SSDTrainDataLoader, SingleShotMultiBoxDetector
 from tasks.utils import EarlyStopping, calculate_mAP, MultiBoxLoss
 
 
 class PascalVOCTraining:
-    def __init__(self, model, batch_size=16):
+    def __init__(self, model, batch_size=16,
+                 img_dir='./data/VOCdevkit/VOC2007/JPEGImages/',
+                 annot_dir='./data/VOCdevkit/VOC2007/Annotations/'):
         self.model = model
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.batch_size = batch_size
         self.train_dataloader, self.val_dataloader = SSDTrainDataLoader(batch_size=batch_size).load_data(
-            './data/VOCdevkit/VOC2007/JPEGImages/',
-            './data/VOCdevkit/VOC2007/Annotations/'
-        )
+            image_dir=img_dir, annot_dir=annot_dir)
         self.label_map = {'background': 0, 'person': 1, 'bird': 2, 'cat': 3, 'cow': 4, 'dog': 5, 'horse': 6, 'sheep': 7,
                           'aeroplane': 8, 'bicycle': 9, 'boat': 10, 'bus': 11, 'car': 12, 'motorbike': 13, 'train': 14,
                           'bottle': 15, 'chair': 16, 'diningtable': 17, 'pottedplant': 18, 'sofa': 19, 'tvmonitor': 20}
@@ -96,7 +96,8 @@ class PascalVOCTraining:
             target_boxes = []
             target_labels = []
             target_difficulties = []
-            for i, (images, boxes, labels, difficulties) in enumerate(self.val_dataloader):
+            for i, (images, boxes, labels, difficulties) in tqdm(enumerate(self.val_dataloader),
+                                                                 total=len(self.val_dataloader)):
                 images = images.to(self.device)
                 boxes = [b.to(self.device) for b in boxes]
                 labels = [l.to(self.device) for l in labels]
@@ -118,3 +119,12 @@ class PascalVOCTraining:
                                      self.label_map, self.rev_label_map)
 
         return APs, mAP
+
+
+if __name__ == '__main__':
+    model = SingleShotMultiBoxDetector(nb_classes=21).to(device='cuda')
+    model.load_state_dict(torch.load('../../../ssd_model__sgd_pure.pth', weights_only=True))
+    evaluation = PascalVOCTraining(model, batch_size=16, img_dir='../../../data/VOCdevkit/VOC2007/JPEGImages/',
+                                   annot_dir='../../../data/VOCdevkit/VOC2007/Annotations/')
+    APs, mAP = evaluation.eval()
+    print(f'Average precision: {APs}, mean Average Precision: {mAP}')

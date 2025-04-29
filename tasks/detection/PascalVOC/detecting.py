@@ -2,7 +2,7 @@ import random
 
 import torch
 
-from models.detection_convolution.SSD300 import SSDTrainDataLoader, SingleShotMultiBoxDetector
+from models.detection_convolution.SSD300 import SingleShotMultiBoxDetector
 from PIL import Image, ImageDraw, ImageFont
 from torchvision import transforms
 import matplotlib.pyplot as plt
@@ -35,7 +35,7 @@ class PascalVOCDetecting:
         locs_pred, cls_pred = self.model(image.unsqueeze(0))
 
         detect_boxes, detect_labels, detect_scores = self.model.detect(locs_pred, cls_pred,
-                                                                       min_score=0.2, max_overlap=0.45,
+                                                                       min_score=0.4, max_overlap=0.45,
                                                                        top_k=200)
 
         detect_boxes = detect_boxes[0].to('cpu')
@@ -75,38 +75,10 @@ class PascalVOCDetecting:
 
 if __name__ == '__main__':
     model = SingleShotMultiBoxDetector(nb_classes=21)
-    model.load_state_dict(torch.load('../../../ssd_model_v0.pth', weights_only=True))
+    model.load_state_dict(torch.load('../../../ssd_model__sgd_pure.pth', weights_only=True))
     detection = PascalVOCDetecting(model, nb_classes=21)
-    # original_image = Image.open('../../../data/VOCdevkit/VOC2007/JPEGImages/000005.jpg')
-    # original_image = original_image.convert('RGB')
-    # annotated_image = detection.detect_objects(original_image)
-    # annotated_image.show()
-
-    val_dataloader, _ = SSDTrainDataLoader(batch_size=1, shuffle=True).load_data(
-        image_dir='../../../data/VOCdevkit/VOC2007/JPEGImages',
-        annot_dir='../../../data/VOCdevkit/VOC2007/Annotations')
-    image, boxes, classes, _ = next(iter(val_dataloader))
-    from torchvision.transforms import functional as F
-
-    classes = [detection.rev_label_map[l] for l in classes[0].to('cpu').tolist()]
-    image_pil = F.to_pil_image(image.squeeze(0).permute(1, 2, 0).numpy())
-    # image_pil.show()
-    draw = ImageDraw.Draw(image_pil)
-    font = ImageFont.truetype('arial.ttf', 15)
-    boxes = boxes[0].cpu()
-    dims = torch.Tensor([image_pil.width, image_pil.height, image_pil.width, image_pil.height])
-    boxes = boxes * dims
-    for i in range(boxes.size(0)):
-        box_location = boxes[i].tolist()
-        draw.rectangle(xy=box_location, outline=detection.label_color_map[classes[i]])
-        draw.rectangle(xy=[l + 1. for l in box_location], outline=detection.label_color_map[classes[i]])
-
-        text_size = font.getbbox(classes[i].upper())
-        text_location = [box_location[0] + 2., box_location[1] - text_size[1]]
-        textbox_location = [box_location[0], box_location[1] - text_size[1],
-                            box_location[0] + text_size[0] + 4., box_location[1]]
-        draw.rectangle(xy=textbox_location, fill=detection.label_color_map[classes[i]])
-        draw.text(xy=text_location, text=classes[i].upper(), fill='white', font=font)
-    image_pil.show()
-
-    plt.imshow((image.squeeze(0).permute(1, 2, 0)) * 255)
+    original_image = Image.open('../../../data/VOCdevkit/VOC2007/JPEGImages/000012.jpg')
+    original_image = original_image.convert('RGB')
+    annotated_image = detection.detect_objects(original_image)
+    plt.imshow(annotated_image)
+    plt.show()
