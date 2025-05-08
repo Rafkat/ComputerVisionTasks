@@ -5,7 +5,7 @@ from models.detection_convolution.RCNN import RCNN, RCNNTrainDataLoader
 from models.detection_convolution.SSD300 import SingleShotMultiBoxDetector, SSDTrainDataLoader
 from tqdm import tqdm
 
-from tasks.utils import calculate_mAP, MultiBoxLoss
+from tasks.detection.utils import calculate_mAP
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

@@ -9,7 +9,7 @@ from tasks.detection.PascalVOC.training import PascalVOCTraining
 from tasks.detection.fruits.training import SSDTraining, RCNNTraining, FasterRCNNTraining
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from tasks.utils import EarlyStopping, MultiBoxLoss
+from tasks.detection.utils import EarlyStopping, MultiBoxLoss
 
 
 def ssd_training(n_epochs, device, lr, ds='fruits'):

@@ -15,7 +15,7 @@ from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from tasks.utils import EarlyStopping
+from tasks.detection.utils import EarlyStopping
 
 
 # originated from https://arxiv.org/pdf/1311.2524

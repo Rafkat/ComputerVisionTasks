@@ -2,11 +2,10 @@ from collections import defaultdict
 
 import pandas as pd
 import torch
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
 from models.detection_convolution.SSD300 import SSDTrainDataLoader, SingleShotMultiBoxDetector
-from tasks.utils import EarlyStopping, calculate_mAP, MultiBoxLoss
+from tasks.detection.utils import calculate_mAP, MultiBoxLoss
 
 
 class PascalVOCTraining:

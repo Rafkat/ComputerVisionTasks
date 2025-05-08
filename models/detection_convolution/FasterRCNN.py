@@ -245,9 +245,8 @@ class RegionProposalNetwork(nn.Module):
         # get positive and negative anchors amongst other things
         gt_bboxes_proj = project_bboxes(gt_bboxes, self.width_scale_factor, self.height_scale_factor, mode='p2a')
 
-        positive_anc_ind, negative_anc_ind, GT_conf_scores, \
-            GT_offsets, GT_class_pos, positive_anc_coords, \
-            negative_anc_coords, positive_anc_ind_sep = get_req_anchors(anc_boxes_all, gt_bboxes_proj, gt_classes)
+        positive_anc_ind, negative_anc_ind, _, GT_offsets, GT_class_pos, positive_anc_coords, \
+            _, positive_anc_ind_sep = get_req_anchors(anc_boxes_all, gt_bboxes_proj, gt_classes)
 
         # pass through the proposal module
         conf_scores_pos, conf_scores_neg, offsets_pos, proposals = self.proposal_module(feature_map, positive_anc_ind,

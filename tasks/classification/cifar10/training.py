@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
 from tasks.classification.cifar10.model_configs import models_config
-from tasks.utils import EarlyStopping
+from tasks.detection.utils import EarlyStopping
 
 
 class Cifar10Training:
