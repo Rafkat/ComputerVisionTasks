@@ -80,7 +80,7 @@ class Attention(nn.Module):
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
         attn = self.drop(self.softmax(dots))
         out = torch.matmul(attn, v)
-        out = out.view(out.size(0), out.size(2), -1)
+        out = out.transpose(1, 2).view(out.size(0), out.size(2), -1)
         return self.to_out(out)
 
 

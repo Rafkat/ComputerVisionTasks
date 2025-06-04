@@ -123,7 +123,7 @@ class PascalVOCTraining:
 if __name__ == '__main__':
     model = SingleShotMultiBoxDetector(nb_classes=21).to(device='cuda')
     model.load_state_dict(torch.load('../../../ssd_model__sgd_pure.pth', weights_only=True))
-    evaluation = PascalVOCTraining(model, batch_size=16, img_dir='../../../data/VOCdevkit/VOC2007/JPEGImages/',
+    evaluation = PascalVOCTraining(model, batch_size=2, img_dir='../../../data/VOCdevkit/VOC2007/JPEGImages/',
                                    annot_dir='../../../data/VOCdevkit/VOC2007/Annotations/')
     APs, mAP = evaluation.eval()
     print(f'Average precision: {APs}, mean Average Precision: {mAP}')

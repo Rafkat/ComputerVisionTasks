@@ -88,8 +88,8 @@ class RCNNTraining:
 
 class FasterRCNNTraining:
     def __init__(self, batch_size=16,
-                 image_dir='./tasks/detection/fruits/data/images',
-                 annot_dir='./tasks/detection/fruits/data/annotations'):
+                 image_dir='./data/images',
+                 annot_dir='./data/annotations'):
         self.batch_size = batch_size
         self.classes_map = {'background': 0, 'pineapple': 1, 'snake fruit': 2, 'dragon fruit': 3, 'banana': 4}
         self.model = FasterRCNN(n_classes=len(self.classes_map))

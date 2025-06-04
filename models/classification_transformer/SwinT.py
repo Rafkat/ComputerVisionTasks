@@ -97,7 +97,7 @@ class WindowAttention(nn.Module):
 
         attn = self.dropout(attn)
         out = torch.matmul(attn, v)
-        out = out.view(out.size(0), out.size(2), -1)
+        out = out.transpose(1, 2).view(out.size(0), out.size(2), -1)
         return self.out(out)
 
 

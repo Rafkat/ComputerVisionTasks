@@ -24,13 +24,13 @@ class FeatureExtractor(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, dim_in, dim_hidden=768, num_heads=8, dropout=0.):
+    def __init__(self, dim_in, head_dim=64, num_heads=8, dropout=0.):
         super(Attention, self).__init__()
-        inner_dim = dim_hidden * num_heads
-        proj_out = not (num_heads != 1 and dim_hidden == dim_in)
+        inner_dim = head_dim * num_heads
+        proj_out = not (num_heads != 1 and head_dim == dim_in)
 
         self.num_heads = num_heads
-        self.scale = dim_hidden ** -0.5
+        self.scale = head_dim ** -0.5
 
         self.norm = nn.LayerNorm(dim_in)
 
@@ -64,7 +64,7 @@ class Attention(nn.Module):
         attn = self.dropout(self.attend(dots))
 
         out = torch.matmul(attn, v)
-        out = out.reshape(out.size(0), out.size(2), -1)
+        out = out.transpose(1, 2).view(out.size(0), out.size(2), -1)
         return self.to_out(out)
 
 
@@ -85,13 +85,13 @@ class FeedForward(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, dim_in, depth, dim_hidden=768, num_heads=8, dropout=0.):
+    def __init__(self, dim_in, depth, ff_dim=2048, head_dim=64, num_heads=8, dropout=0.):
         super(Encoder, self).__init__()
         self.norm = nn.LayerNorm(dim_in)
         self.layers = nn.ModuleList([
             nn.ModuleList([
-                Attention(dim_in, dim_hidden, num_heads, dropout),
-                FeedForward(dim_in, dim_hidden, dropout)
+                Attention(dim_in, head_dim, num_heads, dropout),
+                FeedForward(dim_in, ff_dim, dropout)
             ])
             for _ in range(depth)
         ])
@@ -106,13 +106,13 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, dim_in, depth, dim_hidden=768, num_heads=8, dropout=0.):
+    def __init__(self, dim_in, depth, ff_dim=2048, head_dim=64, num_heads=8, dropout=0.):
         super(Decoder, self).__init__()
         self.norm = nn.LayerNorm(dim_in)
         self.layers = nn.ModuleList([
             nn.ModuleList([
-                Attention(dim_in, dim_hidden, num_heads, dropout),
-                FeedForward(dim_in, dim_hidden, dropout)
+                Attention(dim_in, head_dim, num_heads, dropout),
+                FeedForward(dim_in, ff_dim, dropout)
             ])
             for _ in range(depth)
         ])
@@ -129,10 +129,10 @@ class Decoder(nn.Module):
 
 
 class Transformer(nn.Module):
-    def __init__(self, dim_in, enc_depth, dec_depth, dim_hidden=768, num_heads=8, dropout=0.):
+    def __init__(self, dim_in, enc_depth, dec_depth, ff_dim=2048, head_dim=64, num_heads=8, dropout=0.):
         super(Transformer, self).__init__()
-        self.encoder = Encoder(dim_in, enc_depth, dim_hidden, num_heads, dropout)
-        self.decoder = Decoder(dim_in, dec_depth, dim_hidden, num_heads, dropout)
+        self.encoder = Encoder(dim_in, enc_depth, ff_dim, head_dim, num_heads, dropout)
+        self.decoder = Decoder(dim_in, dec_depth, ff_dim, head_dim, num_heads, dropout)
 
     def forward(self, enc_input, dec_input):
         x = self.encoder(enc_input)

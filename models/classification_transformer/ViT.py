@@ -109,7 +109,7 @@ class Attention(nn.Module):
 
         attn = self.dropout(self.attend(dots))
         out = torch.matmul(attn, v)
-        out = out.view(out.size(0), out.size(2), -1)
+        out = out.transpose(1, 2).view(out.size(0), out.size(2), -1)
         return self.to_out(out)
 
 

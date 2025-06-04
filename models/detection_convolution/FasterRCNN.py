@@ -97,22 +97,6 @@ class FasterRCNNTrainDataLoader:
         self.shuffle = shuffle
         self.classes_map = classes_map
 
-    @staticmethod
-    def combine(batch):
-        images = []
-        boxes = []
-        labels = []
-        difficulties = []
-
-        for b in batch:
-            images.append(b[0])
-            boxes.append(b[1])
-            labels.append(b[2])
-            difficulties.append(b[3])
-
-        images = torch.stack(images, dim=0)
-        return images, boxes, labels, difficulties
-
     def load_data(self, image_dir, annot_dir):
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
